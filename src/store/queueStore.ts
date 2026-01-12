@@ -21,7 +21,7 @@ interface QueueStore {
   unshuffleQueue: () => void;
   nextSong: () => number;
   previousSong: () => number;
-  loadPersistedQueue: () => void;
+  loadPersistedQueue: () => Promise<void>; // Updated return type
 }
 
 export const useQueueStore = create<QueueStore>((set, get) => ({
@@ -147,12 +147,17 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     return prevIndex;
   },
 
-  loadPersistedQueue: () => {
-    const queue = storageUtils.loadQueue();
-    const currentIndex = storageUtils.loadCurrentIndex();
-    
-    if (queue.length > 0) {
-      set({ queue, currentIndex, originalQueue: queue });
+  // UPDATED: Async loading for AsyncStorage
+  loadPersistedQueue: async () => {
+    try {
+      const queue = await storageUtils.loadQueue();
+      const currentIndex = await storageUtils.loadCurrentIndex();
+      
+      if (queue && queue.length > 0) {
+        set({ queue, currentIndex, originalQueue: queue });
+      }
+    } catch (error) {
+      console.error('Failed to load queue:', error);
     }
   },
 }));

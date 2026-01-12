@@ -1,27 +1,25 @@
 // src/utils/storage.ts
 
-import { MMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Song } from '../types';
 
-export const storage = new MMKV();
-
-const QUEUE_KEY = 'queue';
-const CURRENT_INDEX_KEY = 'currentIndex';
+const QUEUE_KEY = 'lokal_music_queue';
+const CURRENT_INDEX_KEY = 'lokal_music_index';
 
 export const storageUtils = {
-  // Save queue to storage
-  saveQueue: (queue: Song[]): void => {
+  // Save queue to storage (Async)
+  saveQueue: async (queue: Song[]): Promise<void> => {
     try {
-      storage.set(QUEUE_KEY, JSON.stringify(queue));
+      await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
     } catch (error) {
       console.error('Error saving queue:', error);
     }
   },
 
-  // Load queue from storage
-  loadQueue: (): Song[] => {
+  // Load queue from storage (Async)
+  loadQueue: async (): Promise<Song[]> => {
     try {
-      const queueData = storage.getString(QUEUE_KEY);
+      const queueData = await AsyncStorage.getItem(QUEUE_KEY);
       return queueData ? JSON.parse(queueData) : [];
     } catch (error) {
       console.error('Error loading queue:', error);
@@ -29,30 +27,30 @@ export const storageUtils = {
     }
   },
 
-  // Save current index
-  saveCurrentIndex: (index: number): void => {
+  // Save current index (Async)
+  saveCurrentIndex: async (index: number): Promise<void> => {
     try {
-      storage.set(CURRENT_INDEX_KEY, index);
+      await AsyncStorage.setItem(CURRENT_INDEX_KEY, index.toString());
     } catch (error) {
       console.error('Error saving current index:', error);
     }
   },
 
-  // Load current index
-  loadCurrentIndex: (): number => {
+  // Load current index (Async)
+  loadCurrentIndex: async (): Promise<number> => {
     try {
-      const index = storage.getNumber(CURRENT_INDEX_KEY);
-      return index !== undefined ? index : 0;
+      const index = await AsyncStorage.getItem(CURRENT_INDEX_KEY);
+      return index ? parseInt(index, 10) : 0;
     } catch (error) {
       console.error('Error loading current index:', error);
       return 0;
     }
   },
 
-  // Clear all storage
-  clearAll: (): void => {
+  // Clear all storage (Async)
+  clearAll: async (): Promise<void> => {
     try {
-      storage.clearAll();
+      await AsyncStorage.multiRemove([QUEUE_KEY, CURRENT_INDEX_KEY]);
     } catch (error) {
       console.error('Error clearing storage:', error);
     }
