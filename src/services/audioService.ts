@@ -1,214 +1,97 @@
-// src/services/audioService.ts
-
-import { Audio, AVPlaybackStatus } from 'expo-av';
-import { Song } from '../types';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { usePlayerStore } from '../store/playerStore';
 import { useQueueStore } from '../store/queueStore';
+import { Song } from '../types';
 
-class AudioService {
-  private sound: Audio.Sound | null = null;
-  private statusUpdateCallback: ((status: AVPlaybackStatus) => void) | null = null;
+let soundObject: Audio.Sound | null = null;
 
-  async initialize() {
+// SMART URL FINDER: Extracts the best audio link from messy API data
+const getStreamUrl = (song: any): string | null => {
+  if (!song) return null;
+  const sources = song.downloadUrl || song.download_url;
+  
+  // 1. Handle Array (Standard API behavior: [12kbps, ..., 320kbps])
+  if (Array.isArray(sources) && sources.length > 0) {
+    // Try to find 320kbps, then 160kbps, otherwise take the last one (usually highest)
+    const best = sources.find((s: any) => s.quality === '320kbps') || 
+                 sources.find((s: any) => s.quality === '160kbps') || 
+                 sources[sources.length - 1];
+    return best?.link || best?.url || null;
+  }
+  
+  // 2. Handle String
+  if (typeof sources === 'string') return sources;
+  
+  return null;
+};
+
+export const audioService = {
+  async setupAudio() {
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
       });
-    } catch (error) {
-      console.error('Error initializing audio:', error);
-    }
-  }
+    } catch (e) { console.log('Audio Setup Error', e); }
+  },
 
   async loadAndPlay(song: Song) {
+    const { setCurrentSong, setIsPlaying, setProgress } = usePlayerStore.getState();
+    const uri = getStreamUrl(song);
+
+    if (!uri) {
+      alert(`Cannot play "${song.name}". No audio link found.`);
+      return; 
+    }
+
     try {
-      const playerStore = usePlayerStore.getState();
-      playerStore.setIsLoading(true);
-
-      // Unload previous sound
-      if (this.sound) {
-        await this.sound.unloadAsync();
-        this.sound = null;
-      }
-
-      // Get highest quality download URL
-      const downloadUrl = this.getHighestQualityUrl(song);
-      if (!downloadUrl) {
-        throw new Error('No download URL available');
-      }
-
-      // Create and load new sound
+      if (soundObject) await soundObject.unloadAsync();
+      await this.setupAudio();
+      
       const { sound } = await Audio.Sound.createAsync(
-        { uri: downloadUrl },
-        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
-        this.onPlaybackStatusUpdate
+        { uri },
+        { shouldPlay: true },
+        (status) => {
+          if (status.isLoaded) {
+            setProgress(status.positionMillis, status.durationMillis || 0);
+            setIsPlaying(status.isPlaying);
+            if (status.didJustFinish) this.playNext();
+          }
+        }
       );
-
-      this.sound = sound;
-      playerStore.setSound(sound);
-      playerStore.setCurrentSong(song);
-      playerStore.setIsPlaying(true);
-      playerStore.setIsLoading(false);
+      soundObject = sound;
+      setCurrentSong(song);
+      setIsPlaying(true);
     } catch (error) {
-      console.error('Error loading song:', error);
-      const playerStore = usePlayerStore.getState();
-      playerStore.setIsLoading(false);
-      playerStore.setIsPlaying(false);
+      console.error('Playback Error:', error);
     }
-  }
-
-  private getHighestQualityUrl(song: Song): string | null {
-    const qualities = ['320kbps', '160kbps', '96kbps', '48kbps', '12kbps'];
-    
-    for (const quality of qualities) {
-      const url = song.downloadUrl.find(
-        (dl) => dl.quality === quality
-      );
-      if (url) {
-        return url.link || url.url || null;
-      }
-    }
-    
-    return null;
-  }
-
-  private onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) {
-      if (status.error) {
-        console.error('Playback error:', status.error);
-      }
-      return;
-    }
-
-    const playerStore = usePlayerStore.getState();
-    const queueStore = useQueueStore.getState();
-
-    playerStore.setPosition(status.positionMillis);
-    playerStore.setDuration(status.durationMillis || 0);
-    playerStore.setIsPlaying(status.isPlaying);
-
-    // Handle song end
-    if (status.didJustFinish && !status.isLooping) {
-      this.handleSongEnd();
-    }
-
-    if (this.statusUpdateCallback) {
-      this.statusUpdateCallback(status);
-    }
-  };
-
-  private async handleSongEnd() {
-    const playerStore = usePlayerStore.getState();
-    const queueStore = useQueueStore.getState();
-
-    if (playerStore.repeatMode === 'one') {
-      // Replay current song
-      await this.sound?.setPositionAsync(0);
-      await this.sound?.playAsync();
-    } else if (playerStore.repeatMode === 'all' || queueStore.currentIndex < queueStore.queue.length - 1) {
-      // Play next song
-      this.playNext();
-    } else {
-      // Stop playback
-      playerStore.setIsPlaying(false);
-    }
-  }
-
-  async play() {
-    try {
-      if (this.sound) {
-        await this.sound.playAsync();
-        const playerStore = usePlayerStore.getState();
-        playerStore.setIsPlaying(true);
-      }
-    } catch (error) {
-      console.error('Error playing:', error);
-    }
-  }
-
-  async pause() {
-    try {
-      if (this.sound) {
-        await this.sound.pauseAsync();
-        const playerStore = usePlayerStore.getState();
-        playerStore.setIsPlaying(false);
-      }
-    } catch (error) {
-      console.error('Error pausing:', error);
-    }
-  }
+  },
 
   async togglePlayPause() {
-    const playerStore = usePlayerStore.getState();
-    if (playerStore.isPlaying) {
-      await this.pause();
-    } else {
-      await this.play();
+    const { isPlaying, setIsPlaying } = usePlayerStore.getState();
+    if (soundObject) {
+      if (isPlaying) await soundObject.pauseAsync();
+      else await soundObject.playAsync();
+      setIsPlaying(!isPlaying);
     }
-  }
-
-  async seek(position: number) {
-    try {
-      if (this.sound) {
-        await this.sound.setPositionAsync(position);
-      }
-    } catch (error) {
-      console.error('Error seeking:', error);
-    }
-  }
+  },
 
   async playNext() {
-    const queueStore = useQueueStore.getState();
-    const nextIndex = queueStore.nextSong();
-    const nextSong = queueStore.queue[nextIndex];
-    
-    if (nextSong) {
-      await this.loadAndPlay(nextSong);
-    }
-  }
+    const next = useQueueStore.getState().playNext();
+    if (next) await this.loadAndPlay(next);
+    else { if (soundObject) await soundObject.stopAsync(); usePlayerStore.getState().setIsPlaying(false); }
+  },
 
   async playPrevious() {
-    const playerStore = usePlayerStore.getState();
-    
-    // If more than 3 seconds have passed, restart current song
-    if (playerStore.position > 3000) {
-      await this.seek(0);
-    } else {
-      const queueStore = useQueueStore.getState();
-      const prevIndex = queueStore.previousSong();
-      const prevSong = queueStore.queue[prevIndex];
-      
-      if (prevSong) {
-        await this.loadAndPlay(prevSong);
-      }
-    }
-  }
+    const prev = useQueueStore.getState().playPrevious();
+    if (prev) await this.loadAndPlay(prev);
+  },
 
-  async stop() {
-    try {
-      if (this.sound) {
-        await this.sound.stopAsync();
-        await this.sound.unloadAsync();
-        this.sound = null;
-      }
-      
-      const playerStore = usePlayerStore.getState();
-      playerStore.reset();
-    } catch (error) {
-      console.error('Error stopping:', error);
-    }
+  async seek(val: number) {
+    if (soundObject) await soundObject.setPositionAsync(val);
   }
-
-  setStatusUpdateCallback(callback: (status: AVPlaybackStatus) => void) {
-    this.statusUpdateCallback = callback;
-  }
-
-  getSound() {
-    return this.sound;
-  }
-}
-
-export const audioService = new AudioService();
+};

@@ -1,41 +1,17 @@
-// src/navigation/AppNavigator.tsx
-
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TabNavigator } from './TabNavigator'; // Import the new Tabs
+import { TabNavigator } from './TabNavigator';
 import { PlayerScreen } from '../screens/PlayerScreen';
-import { QueueScreen } from '../screens/QueueScreen';
-import { Colors } from '../constants/colors';
+import { SearchScreen } from '../screens/SearchScreen'; // Import
 
-export type RootStackParamList = {
-  MainTabs: undefined;
-  Player: undefined;
-  Queue: undefined;
-};
+const Stack = createNativeStackNavigator();
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-
-export const AppNavigator: React.FC = () => {
+export const AppNavigator = () => {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_bottom',
-        contentStyle: { backgroundColor: Colors.background },
-      }}
-    >
-      {/* The main screen is now the Tabs */}
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_bottom' }}>
       <Stack.Screen name="MainTabs" component={TabNavigator} />
-      
-      <Stack.Screen 
-        name="Player" 
-        component={PlayerScreen}
-        options={{
-          animation: 'slide_from_bottom',
-          presentation: 'modal', // Makes it slide up like the design
-        }}
-      />
-      <Stack.Screen name="Queue" component={QueueScreen} />
+      <Stack.Screen name="Player" component={PlayerScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Search" component={SearchScreen} />
     </Stack.Navigator>
   );
 };

@@ -1,106 +1,53 @@
-// src/components/MiniPlayer.tsx
-
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayerStore } from '../store/playerStore';
 import { audioService } from '../services/audioService';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '../constants/colors';
-
-const { width } = Dimensions.get('window');
+import { useThemeStore } from '../store/themeStore';
 
 export const MiniPlayer = () => {
   const navigation = useNavigation();
   const { currentSong, isPlaying, position, duration } = usePlayerStore();
+  const { mode } = useThemeStore();
+  const scheme = useColorScheme();
+  const theme = mode === 'system' ? (scheme === 'dark' ? Colors.dark : Colors.light) : Colors[mode];
 
   if (!currentSong) return null;
 
-  // Extract the best quality image (150x150)
-  const imageUrl = currentSong.image?.find?.((img: any) => img.quality === '150x150')?.link ||
-                   currentSong.image?.find?.((img: any) => img.quality === '150x150')?.url ||
-                   currentSong.image?.[0]?.link ||
-                   currentSong.image?.[0]?.url ||
-                   '';
-
+  const imageUrl = currentSong.image?.[2]?.link || currentSong.image?.[0]?.link;
   const progress = duration > 0 ? (position / duration) * 100 : 0;
-
-  const handlePlayPause = async () => {
-    try {
-      await audioService.togglePlayPause();
-    } catch (error) {
-      console.error('Error toggling play/pause:', error);
-    }
-  };
-
-  const handleNext = async () => {
-    try {
-      await audioService.playNext();
-    } catch (error) {
-      console.error('Error playing next:', error);
-    }
-  };
-
-  const handlePress = () => {
-    navigation.navigate('Player' as never);
-  };
 
   return (
     <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={handlePress}
-      style={styles.container}
+      activeOpacity={0.95}
+      onPress={() => navigation.navigate('Player' as never)}
+      style={[styles.container, { backgroundColor: theme.card, borderTopColor: theme.border }]}
     >
-      {/* Progress Bar Line */}
       <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBar, { width: `${progress}%` }]} />
+        <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
       </View>
 
       <View style={styles.content}>
-        {/* Left Side: Image & Text */}
         <View style={styles.leftSection}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.image} />
-          ) : (
-            <View style={[styles.image, { backgroundColor: Colors.card }]} />
-          )}
+          <Image source={{ uri: imageUrl }} style={styles.image} />
           <View style={styles.textContainer}>
-            <Text style={styles.title} numberOfLines={1}>
-              {currentSong.name || 'Unknown Song'}
+            <Text style={[styles.title, { color: theme.textPrimary }]} numberOfLines={1}>
+              {currentSong.name}
             </Text>
-            <Text style={styles.artist} numberOfLines={1}>
-              {currentSong.primaryArtists || 'Unknown Artist'}
+            <Text style={[styles.artist, { color: theme.textSecondary }]} numberOfLines={1}>
+              {currentSong.primaryArtists}
             </Text>
           </View>
         </View>
 
-        {/* Right Side: Controls */}
         <View style={styles.controls}>
-          <TouchableOpacity
-            onPress={handlePlayPause}
-            style={styles.controlButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={28}
-              color={Colors.primary} // Mume Orange
-            />
+          <TouchableOpacity onPress={() => audioService.togglePlayPause()} style={styles.controlButton}>
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={28} color={theme.primary} />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleNext}
-            style={styles.controlButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="play-skip-forward" size={24} color={Colors.white} />
+          <TouchableOpacity onPress={() => audioService.playNext()} style={styles.controlButton}>
+            <Ionicons name="play-skip-forward" size={24} color={theme.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -110,72 +57,17 @@ export const MiniPlayer = () => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 60, // Sits exactly above the Bottom Tab Bar (approx 60px height)
-    left: 0,
-    right: 0,
-    height: 70,
-    backgroundColor: '#121931', // Deep Navy (slightly lighter than background)
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    position: 'absolute', bottom: 58, left: 0, right: 0, height: 72,
+    borderTopWidth: 1, elevation: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.2, shadowRadius: 10,
   },
-  progressBarContainer: {
-    height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    position: 'absolute',
-    top: -1,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: Colors.primary, // Orange Accent
-  },
-  content: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  leftSection: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  image: {
-    width: 48,
-    height: 48,
-    borderRadius: 8, // Matches PDF rounded corners
-    marginRight: 12,
-    backgroundColor: Colors.card,
-  },
-  textContainer: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.white,
-    marginBottom: 2,
-  },
-  artist: {
-    fontSize: 13,
-    color: Colors.grey, // FIX: Changed from textSecondary to grey
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  controlButton: {
-    padding: 4,
-  },
+  progressBarContainer: { height: 2, width: '100%', position: 'absolute', top: 0, zIndex: 10 },
+  progressBar: { height: '100%' },
+  content: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
+  leftSection: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  image: { width: 48, height: 48, borderRadius: 8, marginRight: 12 },
+  textContainer: { flex: 1, paddingRight: 12 },
+  title: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  artist: { fontSize: 13 },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingRight: 4 },
+  controlButton: { padding: 4 },
 });

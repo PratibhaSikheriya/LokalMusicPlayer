@@ -1,69 +1,36 @@
-// src/store/musicStore.ts
-
 import { create } from 'zustand';
 import { Song } from '../types';
 
+type SortOption = 'Ascending' | 'Descending' | 'Date Added';
+
 interface MusicStore {
-  // Search state
-  searchResults: Song[];
-  isSearching: boolean;
-  searchQuery: string;
-  
-  // Favorites
   favorites: Song[];
-  
-  // Recently played
-  recentlyPlayed: Song[];
-  
-  // Actions
-  setSearchResults: (results: Song[]) => void;
-  setIsSearching: (isSearching: boolean) => void;
-  setSearchQuery: (query: string) => void;
-  addToFavorites: (song: Song) => void;
-  removeFromFavorites: (songId: string) => void;
-  isFavorite: (songId: string) => boolean;
-  addToRecentlyPlayed: (song: Song) => void;
-  clearRecentlyPlayed: () => void;
+  sortOption: SortOption;
+  toggleFavorite: (song: Song) => void;
+  isFavorite: (id: string) => boolean;
+  setSortOption: (option: SortOption) => void;
+  sortSongs: (songs: Song[]) => Song[];
 }
 
 export const useMusicStore = create<MusicStore>((set, get) => ({
-  // Initial state
-  searchResults: [],
-  isSearching: false,
-  searchQuery: '',
   favorites: [],
-  recentlyPlayed: [],
-
-  // Actions
-  setSearchResults: (results) => set({ searchResults: results }),
-  
-  setIsSearching: (isSearching) => set({ isSearching }),
-  
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  
-  addToFavorites: (song) => {
+  sortOption: 'Ascending',
+  toggleFavorite: (song) => {
     const { favorites } = get();
-    if (!favorites.find((s) => s.id === song.id)) {
+    const exists = favorites.find((s) => s.id === song.id);
+    if (exists) {
+      set({ favorites: favorites.filter((s) => s.id !== song.id) });
+    } else {
       set({ favorites: [...favorites, song] });
     }
   },
-  
-  removeFromFavorites: (songId) => {
-    const { favorites } = get();
-    set({ favorites: favorites.filter((s) => s.id !== songId) });
+  isFavorite: (id) => !!get().favorites.find((s) => s.id === id),
+  setSortOption: (option) => set({ sortOption: option }),
+  sortSongs: (songs) => {
+    const { sortOption } = get();
+    const sorted = [...songs];
+    if (sortOption === 'Ascending') return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortOption === 'Descending') return sorted.sort((a, b) => b.name.localeCompare(a.name));
+    return sorted;
   },
-  
-  isFavorite: (songId) => {
-    const { favorites } = get();
-    return favorites.some((s) => s.id === songId);
-  },
-  
-  addToRecentlyPlayed: (song) => {
-    const { recentlyPlayed } = get();
-    const filtered = recentlyPlayed.filter((s) => s.id !== song.id);
-    const updated = [song, ...filtered].slice(0, 20); // Keep last 20
-    set({ recentlyPlayed: updated });
-  },
-  
-  clearRecentlyPlayed: () => set({ recentlyPlayed: [] }),
 }));

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Lokal Music Player",
-    "slug": "lokal-music-player",
+    "name": "LokalMusic",
+    "slug": "lokal-music",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,45 +9,29 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f0c29"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.lokal.musicplayer",
-      "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
-      }
+      "backgroundColor": "#091227"
     },
     "android": {
+      "package": "com.lokal.music",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0f0c29"
+        "backgroundColor": "#091227"
       },
-      "package": "com.lokal.musicplayer",
-      "permissions": [
-        "INTERNET",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "FOREGROUND_SERVICE"
-      ]
+      "permissions": ["INTERNET", "FOREGROUND_SERVICE", "WAKE_LOCK"]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "ios": {
+      "bundleIdentifier": "com.lokal.music",
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
     },
     "plugins": [
       [
         "expo-av",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
-        }
+        { "microphonePermission": "Allow LokalMusic to access your microphone." }
       ],
-      "expo-font",
-      "expo-asset"
+      "expo-font"
     ]
   }
 }
