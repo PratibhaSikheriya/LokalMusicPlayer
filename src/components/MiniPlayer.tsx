@@ -17,25 +17,34 @@ import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
-export const MiniPlayer: React.FC = () => {
+export const MiniPlayer = () => {
   const navigation = useNavigation();
   const { currentSong, isPlaying, position, duration } = usePlayerStore();
 
   if (!currentSong) return null;
 
-  const imageUrl = currentSong.image.find((img) => img.quality === '150x150')?.link ||
-                   currentSong.image.find((img) => img.quality === '150x150')?.url ||
-                   currentSong.image[0]?.link ||
-                   currentSong.image[0]?.url;
+  const imageUrl = currentSong.image?.find?.((img: any) => img.quality === '150x150')?.link ||
+                   currentSong.image?.find?.((img: any) => img.quality === '150x150')?.url ||
+                   currentSong.image?.[0]?.link ||
+                   currentSong.image?.[0]?.url ||
+                   '';
 
   const progress = duration > 0 ? (position / duration) * 100 : 0;
 
   const handlePlayPause = async () => {
-    await audioService.togglePlayPause();
+    try {
+      await audioService.togglePlayPause();
+    } catch (error) {
+      console.error('Error toggling play/pause:', error);
+    }
   };
 
   const handleNext = async () => {
-    await audioService.playNext();
+    try {
+      await audioService.playNext();
+    } catch (error) {
+      console.error('Error playing next:', error);
+    }
   };
 
   const handlePress = () => {
@@ -52,26 +61,27 @@ export const MiniPlayer: React.FC = () => {
         colors={['#1a1a2e', '#16213e']}
         style={styles.gradient}
       >
-        {/* Progress bar */}
         <View style={styles.progressBarContainer}>
           <View style={[styles.progressBar, { width: `${progress}%` }]} />
         </View>
 
         <View style={styles.content}>
-          {/* Song info */}
           <View style={styles.leftSection}>
-            <Image source={{ uri: imageUrl }} style={styles.image} />
+            {imageUrl ? (
+              <Image source={{ uri: imageUrl }} style={styles.image} />
+            ) : (
+              <View style={[styles.image, { backgroundColor: '#333' }]} />
+            )}
             <View style={styles.textContainer}>
               <Text style={styles.title} numberOfLines={1}>
-                {currentSong.name}
+                {currentSong.name || 'Unknown Song'}
               </Text>
               <Text style={styles.artist} numberOfLines={1}>
-                {currentSong.primaryArtists}
+                {currentSong.primaryArtists || 'Unknown Artist'}
               </Text>
             </View>
           </View>
 
-          {/* Controls */}
           <View style={styles.controls}>
             <TouchableOpacity
               onPress={handlePlayPause}

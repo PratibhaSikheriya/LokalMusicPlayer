@@ -19,7 +19,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { audioService } from '../services/audioService';
 import { Song } from '../types';
 
-export const QueueScreen: React.FC = () => {
+export const QueueScreen = () => {
   const navigation = useNavigation();
   const { queue, currentIndex, removeFromQueue, clearQueue, setCurrentIndex } = useQueueStore();
   const { currentSong } = usePlayerStore();
@@ -67,10 +67,11 @@ export const QueueScreen: React.FC = () => {
   };
 
   const renderQueueItem = ({ item, index }: { item: Song; index: number }) => {
-    const imageUrl = item.image.find((img) => img.quality === '150x150')?.link ||
-                     item.image.find((img) => img.quality === '150x150')?.url ||
-                     item.image[0]?.link ||
-                     item.image[0]?.url;
+    const imageUrl = item.image?.find?.((img: any) => img.quality === '150x150')?.link ||
+                     item.image?.find?.((img: any) => img.quality === '150x150')?.url ||
+                     item.image?.[0]?.link ||
+                     item.image?.[0]?.url ||
+                     '';
 
     const isCurrentSong = index === currentIndex;
 
@@ -84,16 +85,20 @@ export const QueueScreen: React.FC = () => {
           <Text style={[styles.queueNumber, isCurrentSong && styles.currentText]}>
             {index + 1}
           </Text>
-          <Image source={{ uri: imageUrl }} style={styles.queueImage} />
-          <View style={styles.queueInfo}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.queueImage} />
+          ) : (
+            <View style={[styles.queueImage, { backgroundColor: '#333' }]} />
+          )}
+          <View style={styles.songInfo}>
             <Text
               style={[styles.queueTitle, isCurrentSong && styles.currentText]}
               numberOfLines={1}
             >
-              {item.name}
+              {item.name || 'Unknown Song'}
             </Text>
             <Text style={styles.queueArtist} numberOfLines={1}>
-              {item.primaryArtists}
+              {item.primaryArtists || 'Unknown Artist'}
             </Text>
           </View>
         </View>
@@ -138,7 +143,7 @@ export const QueueScreen: React.FC = () => {
 
           {/* Queue Info */}
           {queue.length > 0 && (
-            <View style={styles.queueInfo}>
+            <View style={styles.queueInfoContainer}>
               <Text style={styles.queueInfoText}>
                 {queue.length} {queue.length === 1 ? 'song' : 'songs'} in queue
               </Text>
@@ -161,7 +166,7 @@ export const QueueScreen: React.FC = () => {
               keyExtractor={(item, index) => `${item.id}-${index}`}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              initialScrollIndex={currentIndex}
+              initialScrollIndex={currentIndex > 0 && currentIndex < queue.length ? currentIndex : 0}
               getItemLayout={(data, index) => ({
                 length: 80,
                 offset: 80 * index,
@@ -211,7 +216,7 @@ const styles = StyleSheet.create({
     color: '#8A2BE2',
     fontWeight: '600',
   },
-  queueInfo: {
+  queueInfoContainer: {
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
@@ -253,7 +258,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 12,
   },
-  queueInfo: {
+  songInfo: {
     flex: 1,
   },
   queueTitle: {
