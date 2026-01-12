@@ -24,6 +24,7 @@ export const MiniPlayer = () => {
 
   if (!currentSong) return null;
 
+  // Extract the best quality image (150x150)
   const imageUrl = currentSong.image?.find?.((img: any) => img.quality === '150x150')?.link ||
                    currentSong.image?.find?.((img: any) => img.quality === '150x150')?.url ||
                    currentSong.image?.[0]?.link ||
@@ -58,54 +59,52 @@ export const MiniPlayer = () => {
       onPress={handlePress}
       style={styles.container}
     >
-      <LinearGradient
-        colors={['#1a1a2e', '#16213e']}
-        style={styles.gradient}
-      >
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${progress}%` }]} />
-        </View>
+      {/* Progress Bar Line */}
+      <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBar, { width: `${progress}%` }]} />
+      </View>
 
-        <View style={styles.content}>
-          <View style={styles.leftSection}>
-            {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.image} />
-            ) : (
-              <View style={[styles.image, { backgroundColor: '#333' }]} />
-            )}
-            <View style={styles.textContainer}>
-              <Text style={styles.title} numberOfLines={1}>
-                {currentSong.name || 'Unknown Song'}
-              </Text>
-              <Text style={styles.artist} numberOfLines={1}>
-                {currentSong.primaryArtists || 'Unknown Artist'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.controls}>
-            <TouchableOpacity
-              onPress={handlePlayPause}
-              style={styles.controlButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons
-                name={isPlaying ? 'pause' : 'play'}
-                size={28}
-                color="#fff"
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleNext}
-              style={styles.controlButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="play-skip-forward" size={24} color="#fff" />
-            </TouchableOpacity>
+      <View style={styles.content}>
+        {/* Left Side: Image & Text */}
+        <View style={styles.leftSection}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.image} />
+          ) : (
+            <View style={[styles.image, { backgroundColor: '#333' }]} />
+          )}
+          <View style={styles.textContainer}>
+            <Text style={styles.title} numberOfLines={1}>
+              {currentSong.name || 'Unknown Song'}
+            </Text>
+            <Text style={styles.artist} numberOfLines={1}>
+              {currentSong.primaryArtists || 'Unknown Artist'}
+            </Text>
           </View>
         </View>
-      </LinearGradient>
+
+        {/* Right Side: Controls */}
+        <View style={styles.controls}>
+          <TouchableOpacity
+            onPress={handlePlayPause}
+            style={styles.controlButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={isPlaying ? 'pause' : 'play'}
+              size={28}
+              color={Colors.primary} // Orange accent
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleNext}
+            style={styles.controlButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="play-skip-forward" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -113,29 +112,31 @@ export const MiniPlayer = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 60, // Lifted up to sit ABOVE the Tab Bar (Height of TabBar is ~60)
     left: 0,
     right: 0,
     height: 70,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121931', // Slightly lighter blue to separate from background
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
-  gradient: {
-    flex: 1,
-  },
   progressBarContainer: {
     height: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'absolute',
+    top: -1, // Sits exactly on the border line
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#8A2BE2',
+    backgroundColor: Colors.primary, // Orange Accent (#E07050)
   },
   content: {
     flex: 1,
@@ -154,9 +155,11 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 6,
     marginRight: 12,
+    backgroundColor: '#2D344B',
   },
   textContainer: {
     flex: 1,
+    paddingRight: 12,
   },
   title: {
     fontSize: 15,
@@ -166,7 +169,7 @@ const styles = StyleSheet.create({
   },
   artist: {
     fontSize: 13,
-    color: '#999',
+    color: Colors.textSecondary, // Muted Blue-Gray
   },
   controls: {
     flexDirection: 'row',
