@@ -27,7 +27,7 @@ export default function App() {
         <NavigationContainer>
           <StatusBar barStyle="light-content" backgroundColor="#0f0c29" />
           <AppNavigator />
-          <MiniPlayer />
+          
         </NavigationContainer>
       </SafeAreaProvider>
     </GestureHandlerRootView>

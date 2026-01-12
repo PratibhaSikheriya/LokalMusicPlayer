@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { usePlayerStore } from '../store/playerStore';
 import { audioService } from '../services/audioService';
 import { useNavigation } from '@react-navigation/native';
+import { Colors } from '../constants/colors';
 
 const { width } = Dimensions.get('window');
 

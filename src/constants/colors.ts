@@ -1,38 +1,28 @@
 // src/constants/colors.ts
 
 export const Colors = {
-  // Primary gradient colors
-  gradientStart: '#0f0c29',
-  gradientMiddle: '#302b63',
-  gradientEnd: '#24243e',
+  // Main Background (Deep Blue from PDF Page 1)
+  background: '#091227', 
   
-  // Accent colors
-  primary: '#8A2BE2', // Blue Violet
-  primaryLight: '#DA70D6', // Orchid
-  accent: '#BA55D3', // Medium Orchid
+  // Primary Accent (Orange/Coral from Player Button on Page 5)
+  primary: '#E07050', 
+  primaryGradient: ['#FF9C7D', '#E07050'], // For buttons
   
-  // Background colors
-  background: '#0f0c29',
-  cardBackground: 'rgba(255, 255, 255, 0.1)',
-  overlayBackground: 'rgba(0, 0, 0, 0.5)',
-  
-  // Text colors
+  // Secondary/Inactive
   textPrimary: '#FFFFFF',
-  textSecondary: '#999999',
-  textTertiary: '#666666',
-  textDisabled: '#444444',
+  textSecondary: '#8996B8', // Muted blue-gray text
+  textDisabled: '#4A5568',
   
-  // UI colors
-  success: '#4CAF50',
-  error: '#F44336',
-  warning: '#FF9800',
-  info: '#2196F3',
+  // UI Elements
+  cardBackground: 'rgba(255, 255, 255, 0.05)',
+  inputBackground: '#121931',
+  border: 'rgba(255, 255, 255, 0.1)',
   
-  // Transparent colors
-  whiteTransparent: 'rgba(255, 255, 255, 0.1)',
-  blackTransparent: 'rgba(0, 0, 0, 0.3)',
+  // Gradients
+  gradientStart: '#091227',
+  gradientEnd: '#121931',
   
-  // Border colors
-  border: 'rgba(255, 255, 255, 0.2)',
-  borderLight: 'rgba(255, 255, 255, 0.1)',
+  // Player specific
+  progressBar: '#E07050',
+  progressBarBackground: '#2D344B',
 };

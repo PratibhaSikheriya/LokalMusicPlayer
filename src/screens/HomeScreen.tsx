@@ -2,242 +2,183 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  StatusBar,
+  View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity,
+  Image, ScrollView, StatusBar, ActivityIndicator
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SongCard } from '../components/SongCard';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '../constants/colors';
 import { saavnApi } from '../api/saavn';
-import { Song } from '../types';
+import { usePlayerStore } from '../store/playerStore';
 import { useQueueStore } from '../store/queueStore';
 import { audioService } from '../services/audioService';
-import { usePlayerStore } from '../store/playerStore';
+import { Song } from '../types';
+
+const CATEGORIES = ['Suggested', 'Songs', 'Artists', 'Albums'];
 
 export const HomeScreen: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('Suggested');
   const [songs, setSongs] = useState<Song[]>([]);
+  const [trending, setTrending] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  
   const { setQueue } = useQueueStore();
-  const { currentSong } = usePlayerStore();
 
   useEffect(() => {
-    loadTrendingSongs();
+    loadData();
   }, []);
 
-  const loadTrendingSongs = async () => {
+  const loadData = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const data = await saavnApi.getTrendingSongs();
-      setSongs(data);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error loading trending songs:', error);
-      setIsLoading(false);
-    }
+      // Fetch trending for the horizontal list
+      const trendData = await saavnApi.getTrendingSongs(); 
+      setTrending(trendData.slice(0, 5)); // Top 5 for horizontal
+      setSongs(trendData); // Rest for vertical
+    } catch (e) { console.error(e); }
+    setIsLoading(false);
   };
 
-  const searchSongs = async (query: string, pageNum: number = 1) => {
-    if (!query.trim()) {
-      loadTrendingSongs();
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const response = await saavnApi.searchSongs(query, pageNum);
-      
-      if (pageNum === 1) {
-        setSongs(response.data.results);
-      } else {
-        setSongs(prev => [...prev, ...response.data.results]);
-      }
-      
-      setHasMore(response.data.results.length === 20);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error searching songs:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-    setPage(1);
-    setHasMore(true);
-    
-    // Debounce search
-    const timeoutId = setTimeout(() => {
-      searchSongs(text, 1);
-    }, 500);
-    
-    return () => clearTimeout(timeoutId);
-  };
-
-  const handleLoadMore = () => {
-    if (!isLoading && hasMore && searchQuery) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      searchSongs(searchQuery, nextPage);
-    }
-  };
-
-  const handleSongPress = async (song: Song, index: number) => {
-    setQueue(songs, index);
+  const handleSongPress = async (song: Song, list: Song[]) => {
+    setQueue(list);
     await audioService.loadAndPlay(song);
   };
 
-  const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
-    <SongCard
-      song={item}
-      onPress={() => handleSongPress(item, index)}
-      isPlaying={currentSong?.id === item.id}
-    />
+  // Render Horizontal Card (Recently Played style)
+  const renderTrendingCard = ({ item }: { item: Song }) => (
+    <TouchableOpacity 
+      style={styles.trendCard}
+      onPress={() => handleSongPress(item, trending)}
+    >
+      <Image 
+        source={{ uri: item.image[2]?.link || item.image[0]?.link }} 
+        style={styles.trendImage} 
+      />
+      <Text style={styles.trendTitle} numberOfLines={1}>{item.name}</Text>
+      <Text style={styles.trendArtist} numberOfLines={1}>{item.primaryArtists}</Text>
+    </TouchableOpacity>
   );
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Lokal</Text>
-      <Text style={styles.headerSubtitle}>
-        {searchQuery ? 'Search Results' : 'Trending Now'}
-      </Text>
-    </View>
-  );
-
-  const renderFooter = () => {
-    if (!isLoading) return null;
-    return (
-      <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#8A2BE2" />
+  // Render Vertical List Item
+  const renderSongItem = ({ item }: { item: Song }) => (
+    <TouchableOpacity 
+      style={styles.songRow}
+      onPress={() => handleSongPress(item, songs)}
+    >
+      <Image 
+        source={{ uri: item.image[1]?.link || item.image[0]?.link }} 
+        style={styles.songImage} 
+      />
+      <View style={styles.songInfo}>
+        <Text style={styles.songTitle} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.songArtist} numberOfLines={1}>{item.primaryArtists}</Text>
       </View>
-    );
-  };
+      <TouchableOpacity>
+        <Ionicons name="ellipsis-vertical" size={20} color={Colors.textSecondary} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={['#0f0c29', '#302b63', '#24243e']}
-        style={styles.gradient}
-      >
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-          {renderHeader()}
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Music</Text>
+        <TouchableOpacity>
+           <Image 
+             source={{ uri: 'https://i.pravatar.cc/100' }} // Placeholder avatar
+             style={styles.avatar} 
+           />
+        </TouchableOpacity>
+      </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search for songs, artists..."
-              placeholderTextColor="#666"
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  loadTrendingSongs();
-                }}
-              >
-                <Ionicons name="close-circle" size={20} color="#999" />
-              </TouchableOpacity>
-            )}
-          </View>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={Colors.textSecondary} />
+        <TextInput 
+          placeholder="Search for songs, artists..." 
+          placeholderTextColor={Colors.textSecondary}
+          style={styles.searchInput}
+        />
+      </View>
 
-          {/* Songs List */}
-          {isLoading && songs.length === 0 ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#8A2BE2" />
-              <Text style={styles.loadingText}>Loading songs...</Text>
+      {/* Categories / Chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
+        {CATEGORIES.map((cat) => (
+          <TouchableOpacity 
+            key={cat} 
+            style={[styles.chip, activeCategory === cat && styles.activeChip]}
+            onPress={() => setActiveCategory(cat)}
+          >
+            <Text style={[styles.chipText, activeCategory === cat && styles.activeChipText]}>
+              {cat}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Horizontal Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recently Played</Text>
+          <Text style={styles.seeAll}>See All</Text>
+        </View>
+        
+        <FlatList
+          horizontal
+          data={trending}
+          renderItem={renderTrendingCard}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.trendList}
+        />
+
+        {/* Vertical Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Most Played</Text>
+          <Text style={styles.seeAll}>See All</Text>
+        </View>
+
+        {isLoading ? (
+          <ActivityIndicator color={Colors.primary} />
+        ) : (
+          songs.map((song, index) => (
+            <View key={song.id}>
+              {renderSongItem({ item: song })}
             </View>
-          ) : (
-            <FlatList
-              data={songs}
-              renderItem={renderSongItem}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.5}
-              ListFooterComponent={renderFooter}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-        </SafeAreaView>
-      </LinearGradient>
-    </View>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f0c29',
-  },
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#999',
-  },
+  container: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, marginBottom: 20 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    height: 48,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.inputBackground,
+    padding: 12, borderRadius: 12, marginBottom: 20
   },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#fff',
-  },
-  listContent: {
-    paddingBottom: 100,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#999',
-  },
-  footer: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
+  searchInput: { marginLeft: 10, color: 'white', flex: 1, fontSize: 16 },
+  categories: { flexDirection: 'row', marginBottom: 20, maxHeight: 50 },
+  chip: { marginRight: 15, paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20, backgroundColor: 'transparent' },
+  activeChip: { backgroundColor: Colors.primary },
+  chipText: { color: Colors.textSecondary, fontSize: 16, fontWeight: '600' },
+  activeChipText: { color: 'white' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, marginTop: 10 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: 'white' },
+  seeAll: { color: Colors.textSecondary },
+  trendList: { paddingRight: 20 },
+  trendCard: { marginRight: 15, width: 140 },
+  trendImage: { width: 140, height: 140, borderRadius: 16, marginBottom: 8 },
+  trendTitle: { color: 'white', fontSize: 14, fontWeight: 'bold' },
+  trendArtist: { color: Colors.textSecondary, fontSize: 12 },
+  songRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  songImage: { width: 60, height: 60, borderRadius: 10, marginRight: 15 },
+  songInfo: { flex: 1 },
+  songTitle: { color: 'white', fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  songArtist: { color: Colors.textSecondary, fontSize: 14 },
 });
