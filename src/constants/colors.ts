@@ -1,28 +1,28 @@
 // src/constants/colors.ts
 
 export const Colors = {
-  // Main Background (Deep Blue from PDF Page 1)
-  background: '#091227', 
+  // The exact deep navy background from the design
+  background: '#091227',
   
-  // Primary Accent (Orange/Coral from Player Button on Page 5)
+  // The "Mume" Coral Orange
   primary: '#E07050', 
-  primaryGradient: ['#FF9C7D', '#E07050'], // For buttons
   
-  // Secondary/Inactive
-  textPrimary: '#FFFFFF',
-  textSecondary: '#8996B8', // Muted blue-gray text
-  textDisabled: '#4A5568',
+  // Secondary elements (Search bars, cards)
+  card: '#10192F',
+  input: '#151E32',
   
-  // UI Elements
-  cardBackground: 'rgba(255, 255, 255, 0.05)',
-  inputBackground: '#121931',
-  border: 'rgba(255, 255, 255, 0.1)',
+  // Text
+  white: '#FFFFFF',
+  grey: '#8996B8',
+  darkGrey: '#58627A',
   
-  // Gradients
-  gradientStart: '#091227',
-  gradientEnd: '#121931',
+  // Player Controls
+  playButton: '#E07050',
+  progressBarBackground: '#283043',
+  progressBarFill: '#E07050',
   
-  // Player specific
-  progressBar: '#E07050',
-  progressBarBackground: '#2D344B',
+  // Navigation
+  tabBar: '#091227', // Blends with background
+  tabIconActive: '#E07050',
+  tabIconInactive: '#58627A',
 };

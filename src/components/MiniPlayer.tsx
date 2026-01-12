@@ -10,7 +10,6 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { usePlayerStore } from '../store/playerStore';
 import { audioService } from '../services/audioService';
 import { useNavigation } from '@react-navigation/native';
@@ -70,7 +69,7 @@ export const MiniPlayer = () => {
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={styles.image} />
           ) : (
-            <View style={[styles.image, { backgroundColor: '#333' }]} />
+            <View style={[styles.image, { backgroundColor: Colors.card }]} />
           )}
           <View style={styles.textContainer}>
             <Text style={styles.title} numberOfLines={1}>
@@ -92,7 +91,7 @@ export const MiniPlayer = () => {
             <Ionicons
               name={isPlaying ? 'pause' : 'play'}
               size={28}
-              color={Colors.primary} // Orange accent
+              color={Colors.primary} // Mume Orange
             />
           </TouchableOpacity>
 
@@ -101,7 +100,7 @@ export const MiniPlayer = () => {
             style={styles.controlButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="play-skip-forward" size={24} color="#fff" />
+            <Ionicons name="play-skip-forward" size={24} color={Colors.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -112,11 +111,11 @@ export const MiniPlayer = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 60, // Lifted up to sit ABOVE the Tab Bar (Height of TabBar is ~60)
+    bottom: 60, // Sits exactly above the Bottom Tab Bar (approx 60px height)
     left: 0,
     right: 0,
     height: 70,
-    backgroundColor: '#121931', // Slightly lighter blue to separate from background
+    backgroundColor: '#121931', // Deep Navy (slightly lighter than background)
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
     elevation: 8,
@@ -129,14 +128,14 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     position: 'absolute',
-    top: -1, // Sits exactly on the border line
+    top: -1,
     left: 0,
     right: 0,
     zIndex: 10,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: Colors.primary, // Orange Accent (#E07050)
+    backgroundColor: Colors.primary, // Orange Accent
   },
   content: {
     flex: 1,
@@ -153,9 +152,9 @@ const styles = StyleSheet.create({
   image: {
     width: 48,
     height: 48,
-    borderRadius: 6,
+    borderRadius: 8, // Matches PDF rounded corners
     marginRight: 12,
-    backgroundColor: '#2D344B',
+    backgroundColor: Colors.card,
   },
   textContainer: {
     flex: 1,
@@ -164,12 +163,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.white,
     marginBottom: 2,
   },
   artist: {
     fontSize: 13,
-    color: Colors.textSecondary, // Muted Blue-Gray
+    color: Colors.grey, // FIX: Changed from textSecondary to grey
   },
   controls: {
     flexDirection: 'row',
