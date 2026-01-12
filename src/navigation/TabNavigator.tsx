@@ -1,11 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens/HomeScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { PlaylistsScreen } from '../screens/PlaylistsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
 import { useThemeStore } from '../store/themeStore';
 import { MiniPlayer } from '../components/MiniPlayer';
@@ -25,10 +25,10 @@ export const TabNavigator = () => {
           tabBarStyle: {
             backgroundColor: theme.tabBar,
             borderTopWidth: 0,
-            height: 65, // Taller bar for modern look
+            height: 65,
             paddingBottom: 10,
             paddingTop: 10,
-            elevation: 0, // Flat design
+            elevation: 0,
           },
           tabBarActiveTintColor: theme.tabIconActive,
           tabBarInactiveTintColor: theme.tabIconInactive,
@@ -38,6 +38,7 @@ export const TabNavigator = () => {
         <Tab.Screen 
           name="Home" 
           component={HomeScreen} 
+          // FIXED: defined inline to avoid "nested component" error
           options={{
             tabBarLabel: 'Home',
             tabBarIcon: ({ color, size }) => <Ionicons name="home" size={24} color={color} />
@@ -68,8 +69,6 @@ export const TabNavigator = () => {
           }} 
         />
       </Tab.Navigator>
-      
-      {/* MiniPlayer floats above the tabs */}
       <MiniPlayer />
     </>
   );
