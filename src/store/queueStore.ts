@@ -7,7 +7,6 @@ interface QueueStore {
   setQueue: (songs: Song[]) => void;
   playNext: () => Song | null;
   playPrevious: () => Song | null;
-  // FIXED: Added missing types
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   setCurrentIndex: (index: number) => void;
@@ -36,17 +35,20 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     return null;
   },
 
-  // FIXED: Added missing logic
   removeFromQueue: (index) => {
     const { queue, currentIndex } = get();
     const newQueue = [...queue];
     newQueue.splice(index, 1);
     let newIndex = currentIndex;
     if (index < currentIndex) newIndex = currentIndex - 1;
+    // Reset if empty or ensure index is valid
+    if (newQueue.length === 0) newIndex = -1;
+    else if (newIndex >= newQueue.length) newIndex = newQueue.length - 1;
+    
     set({ queue: newQueue, currentIndex: Math.max(0, newIndex) });
   },
 
-  clearQueue: () => set({ queue: [], currentIndex: 0 }),
+  clearQueue: () => set({ queue: [], currentIndex: -1 }),
 
   setCurrentIndex: (index) => set({ currentIndex: index }),
 }));

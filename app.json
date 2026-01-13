@@ -17,21 +17,30 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#091227"
       },
-      "permissions": ["INTERNET", "FOREGROUND_SERVICE", "WAKE_LOCK"]
+      "permissions": [
+        "INTERNET",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.lokal.music",
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "plugins": [
       [
         "expo-av",
-        { "microphonePermission": "Allow LokalMusic to access your microphone." }
+        {
+          "microphonePermission": "Allow LokalMusic to access your microphone."
+        }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-audio"
     ]
   }
 }

@@ -18,16 +18,39 @@ export const SongCard: React.FC<SongCardProps> = ({
   onMorePress,
   isPlaying = false,
 }) => {
-  const imageUrl = song.image.find((img) => img.quality === '150x150')?.link || 
-                   song.image.find((img) => img.quality === '150x150')?.url ||
-                   song.image[0]?.link ||
-                   song.image[0]?.url;
+  // Handle both 'link' and 'url' properties from different API endpoints
+  const getImageUrl = (): string => {
+    const img150 = song.image.find((img) => img.quality === '150x150');
+    if (img150) {
+      return img150.link || img150.url || '';
+    }
+    // Fallback to first image
+    const firstImage = song.image[0];
+    return firstImage?.link || firstImage?.url || '';
+  };
+
+  const imageUrl = getImageUrl();
 
   const formatDuration = (duration: string | number): string => {
-    const seconds = typeof duration === 'string' ? parseInt(duration) : duration;
+    const seconds = typeof duration === 'string' ? parseInt(duration, 10) : duration;
+    if (isNaN(seconds)) return '0:00';
+    
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatPlayCount = (count?: string): string => {
+    if (!count) return '';
+    const numCount = parseInt(count, 10);
+    if (isNaN(numCount)) return '';
+    
+    if (numCount >= 1000000) {
+      return `${(numCount / 1000000).toFixed(1)}M`;
+    } else if (numCount >= 1000) {
+      return `${(numCount / 1000).toFixed(1)}K`;
+    }
+    return numCount.toString();
   };
 
   return (
@@ -62,7 +85,7 @@ export const SongCard: React.FC<SongCardProps> = ({
             <>
               <Text style={styles.dot}>•</Text>
               <Text style={styles.playCount}>
-                {(parseInt(song.playCount) / 1000000).toFixed(1)}M plays
+                {formatPlayCount(song.playCount)} plays
               </Text>
             </>
           )}
@@ -91,7 +114,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   playingContainer: {
-    backgroundColor: 'rgba(138, 43, 226, 0.1)',
+    backgroundColor: 'rgba(255, 111, 0, 0.1)', // Orange tint to match your theme
   },
   imageContainer: {
     position: 'relative',
@@ -101,6 +124,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 8,
+    backgroundColor: '#1a1a2e', // Fallback color while loading
   },
   playingOverlay: {
     position: 'absolute',
@@ -108,7 +132,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(138, 43, 226, 0.6)',
+    backgroundColor: 'rgba(255, 111, 0, 0.6)', // Orange overlay
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -124,7 +148,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   playingText: {
-    color: '#8A2BE2',
+    color: '#FF6F00', // Orange accent
   },
   artist: {
     fontSize: 14,

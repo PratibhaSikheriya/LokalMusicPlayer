@@ -1,103 +1,121 @@
 // src/api/saavn.ts
 
-import { SearchResponse, SongDetailsResponse, Song } from '../types';
-
-const BASE_URL = 'https://saavn.sumit.co';
+const BASE_URL = 'https://saavn.sumit.co/api';
 
 export const saavnApi = {
-  // Search for songs
-  searchSongs: async (query: string, page: number = 1): Promise<SearchResponse> => {
+  // Search songs - returns array of songs
+  searchSongs: async (query: string) => {
     try {
       const response = await fetch(
-        `${BASE_URL}/api/search/songs?query=${encodeURIComponent(query)}&page=${page}&limit=20`
+        `${BASE_URL}/search/songs?query=${encodeURIComponent(query)}`
       );
+      const json = await response.json();
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch songs');
+      if (json.status === 'SUCCESS' && json.data?.results) {
+        return json.data.results;
       }
-      
-      const data = await response.json();
-      return data;
+      return [];
     } catch (error) {
-      console.error('Error searching songs:', error);
-      throw error;
-    }
-  },
-
-  // Get song details by ID
-  getSongById: async (id: string): Promise<Song> => {
-    try {
-      const response = await fetch(`${BASE_URL}/api/songs/${id}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch song details');
-      }
-      
-      const data: SongDetailsResponse = await response.json();
-      return data.data[0];
-    } catch (error) {
-      console.error('Error fetching song details:', error);
-      throw error;
-    }
-  },
-
-  // Get song suggestions
-  getSuggestions: async (id: string): Promise<Song[]> => {
-    try {
-      const response = await fetch(`${BASE_URL}/api/songs/${id}/suggestions`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch suggestions');
-      }
-      
-      const data = await response.json();
-      return data.data || [];
-    } catch (error) {
-      console.error('Error fetching suggestions:', error);
+      console.error('Search songs error:', error);
       return [];
     }
   },
 
-  // Get trending songs (using search with popular query)
-  getTrendingSongs: async (): Promise<Song[]> => {
+  // Get song by ID - returns single song details
+  getSongById: async (id: string) => {
     try {
-      const response = await saavnApi.searchSongs('arijit singh', 1);
-      return response.data.results;
+      const response = await fetch(`${BASE_URL}/songs/${id}`);
+      const json = await response.json();
+      
+      if (json.success && json.data?.[0]) {
+        return json.data[0];
+      }
+      return null;
     } catch (error) {
-      console.error('Error fetching trending songs:', error);
+      console.error('Get song error:', error);
+      return null;
+    }
+  },
+
+  // Get song suggestions - for queue/autoplay
+  getSongSuggestions: async (id: string) => {
+    try {
+      const response = await fetch(`${BASE_URL}/songs/${id}/suggestions`);
+      const json = await response.json();
+      
+      if (json.success && json.data) {
+        return json.data;
+      }
+      return [];
+    } catch (error) {
+      console.error('Get suggestions error:', error);
+      return [];
+    }
+  },
+
+  // Search albums
+  searchAlbums: async (query: string) => {
+    try {
+      const response = await fetch(
+        `${BASE_URL}/search/albums?query=${encodeURIComponent(query)}`
+      );
+      const json = await response.json();
+      return json.status === 'SUCCESS' && json.data?.results 
+        ? json.data.results 
+        : [];
+    } catch (error) {
+      console.error('Search albums error:', error);
+      return [];
+    }
+  },
+
+  // Search artists
+  searchArtists: async (query: string) => {
+    try {
+      const response = await fetch(
+        `${BASE_URL}/search/artists?query=${encodeURIComponent(query)}`
+      );
+      const json = await response.json();
+      return json.status === 'SUCCESS' && json.data?.results 
+        ? json.data.results 
+        : [];
+    } catch (error) {
+      console.error('Search artists error:', error);
       return [];
     }
   },
 
   // Get artist details
-  getArtist: async (id: string) => {
+  getArtistById: async (id: string) => {
     try {
-      const response = await fetch(`${BASE_URL}/api/artists/${id}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch artist');
-      }
-      
-      return await response.json();
+      const response = await fetch(`${BASE_URL}/artists/${id}`);
+      const json = await response.json();
+      return json.success && json.data ? json.data : null;
     } catch (error) {
-      console.error('Error fetching artist:', error);
-      throw error;
+      console.error('Get artist error:', error);
+      return null;
     }
   },
 
   // Get artist songs
   getArtistSongs: async (id: string) => {
     try {
-      const response = await fetch(`${BASE_URL}/api/artists/${id}/songs`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch artist songs');
-      }
-      
-      return await response.json();
+      const response = await fetch(`${BASE_URL}/artists/${id}/songs`);
+      const json = await response.json();
+      return json.success && json.data ? json.data : [];
     } catch (error) {
-      console.error('Error fetching artist songs:', error);
-      throw error;
+      console.error('Get artist songs error:', error);
+      return [];
     }
+  },
+
+  // Get trending songs (for home screen)
+  getTrending: async () => {
+    return saavnApi.searchSongs('trending');
+  },
+
+  // Get popular songs by language
+  getSongsByLanguage: async (language: string) => {
+    return saavnApi.searchSongs(`${language} songs`);
   }
 };
