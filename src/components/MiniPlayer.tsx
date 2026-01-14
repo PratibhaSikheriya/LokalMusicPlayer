@@ -8,6 +8,7 @@ import { audioService } from '../services/audioService';
 import { useNavigation } from '@react-navigation/native';
 import { Colors } from '../constants/colors';
 import { useThemeStore } from '../store/themeStore';
+import { decodeHtmlEntities } from '../utils/htmlDecode';
 
 export const MiniPlayer = () => {
   const navigation = useNavigation();
@@ -21,13 +22,10 @@ export const MiniPlayer = () => {
   const [isPlayerScreenOpen, setIsPlayerScreenOpen] = useState(false);
 
   useEffect(() => {
-    // Listen to navigation state changes
     const unsubscribe = navigation.addListener('state', () => {
-      // Get the current route from navigation
       const state = navigation.getState();
       const currentRoute = state?.routes[state.index];
       
-      // Hide mini player if on Player screen
       if (currentRoute?.name === 'Player') {
         setIsPlayerScreenOpen(true);
       } else {
@@ -38,7 +36,6 @@ export const MiniPlayer = () => {
     return unsubscribe;
   }, [navigation]);
 
-  // Hide mini player if no song or if Player screen is open
   if (!currentSong || isPlayerScreenOpen) {
     return null;
   }
@@ -51,7 +48,8 @@ export const MiniPlayer = () => {
     currentSong.image?.[0]?.url || 
     currentSong.image?.[0]?.link;
 
-  const artistName = currentSong.primaryArtists || 'Unknown Artist';
+  const artistName = decodeHtmlEntities(currentSong.primaryArtists || 'Unknown Artist');
+  const songName = decodeHtmlEntities(currentSong.name);
   const progress = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
@@ -77,7 +75,7 @@ export const MiniPlayer = () => {
           />
           <View style={styles.songInfo}>
             <Text style={[styles.songTitle, { color: theme.textPrimary }]} numberOfLines={1}>
-              {currentSong.name}
+              {songName}
             </Text>
             <Text style={[styles.artistName, { color: theme.textSecondary }]} numberOfLines={1}>
               {artistName}

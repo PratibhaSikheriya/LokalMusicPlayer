@@ -15,6 +15,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useQueueStore } from '../store/queueStore';
 import { audioService } from '../services/audioService';
 import { Song } from '../types';
+import { decodeHtmlEntities } from '../utils/htmlDecode';
 
 const CATEGORIES = ['Suggested', 'Songs', 'Artists', 'Albums', 'Folders'];
 const SORT_OPTIONS = ['Ascending', 'Descending', 'Artist', 'Album', 'Year', 'Date Added'];
@@ -42,45 +43,44 @@ export const HomeScreen = () => {
   const { setQueue } = useQueueStore();
 
   useEffect(() => { 
-    console.log('🎵 HomeScreen mounted');
+    console.log('HomeScreen mounted');
     loadAllData(); 
   }, []);
 
   const loadAllData = async () => {
-    console.log('🚀 Loading data...');
+    console.log('Loading data...');
     setIsLoading(true);
     try {
-      // 1. Fetch Songs (Trending)
-      console.log('📥 Fetching songs...');
+      console.log('Fetching songs...');
       const songData = await saavnApi.getTrending();
-      console.log('✅ Songs loaded:', songData.length);
+      console.log('Songs loaded:', songData.length);
       setSongs(songData);
 
-      // 2. Fetch Artists (Initial Load)
-      console.log('📥 Fetching artists...');
+      console.log('Fetching artists...');
       const artistData = await saavnApi.searchArtists('arijit singh');
-      console.log('✅ Artists loaded:', artistData.length);
+      console.log('Artists loaded:', artistData.length);
       setArtists(artistData);
 
-      // 3. Fetch Albums (Initial Load)
-      console.log('📥 Fetching albums...');
+      console.log('Fetching albums...');
       const albumData = await saavnApi.searchAlbums('bollywood');
-      console.log('✅ Albums loaded:', albumData.length);
+      console.log('Albums loaded:', albumData.length);
       setAlbums(albumData);
 
     } catch (e) { 
-      console.error('❌ Error:', e); 
+      console.error('Error:', e); 
     }
     setIsLoading(false);
-    console.log('✅ Loading complete');
+    console.log('Loading complete');
   };
 
   const handlePlay = (song: Song) => {
+    console.log('Playing song:', song.name);
     setQueue(songs);
     audioService.loadAndPlay(song);
   };
 
   const openMenu = (song: Song) => {
+    console.log('Opening menu for:', song.name);
     setSelectedSong(song);
     setMenuVisible(true);
   };
@@ -108,36 +108,56 @@ export const HomeScreen = () => {
     }
   };
 
+  // Get image URL - handles both 'link' and 'url' properties
+  const getImageUrl = (imageArray: any[]) => {
+    if (!imageArray || imageArray.length === 0) return '';
+    return imageArray[2]?.url || imageArray[2]?.link || 
+           imageArray[1]?.url || imageArray[1]?.link || 
+           imageArray[0]?.url || imageArray[0]?.link || '';
+  };
+
   // --- RENDERERS ---
 
-  const renderHorizontalCard = ({ item }: { item: Song }) => (
-    <TouchableOpacity style={styles.horizCard} onPress={() => handlePlay(item)}>
-      <Image 
-        source={{ uri: item.image?.[2]?.link || item.image?.[0]?.link }} 
-        style={[styles.horizImg, { backgroundColor: theme.card }]} 
-      />
-      <Text style={[styles.horizTitle, { color: theme.textPrimary }]} numberOfLines={2}>
-        {item.name}
-      </Text>
-      <Text style={[styles.horizSub, { color: theme.textSecondary }]} numberOfLines={1}>
-        {item.primaryArtists}
-      </Text>
-    </TouchableOpacity>
-  );
+  const renderHorizontalCard = ({ item }: { item: Song }) => {
+    const imageUrl = getImageUrl(item.image);
+    
+    return (
+      <TouchableOpacity 
+        style={styles.horizCard} 
+        onPress={() => handlePlay(item)}
+        activeOpacity={0.7}
+      >
+        <Image 
+          source={{ uri: imageUrl }} 
+          style={[styles.horizImg, { backgroundColor: theme.card }]} 
+        />
+        <Text style={[styles.horizTitle, { color: theme.textPrimary }]} numberOfLines={2}>
+          {decodeHtmlEntities(item.name)}
+        </Text>
+        <Text style={[styles.horizSub, { color: theme.textSecondary }]} numberOfLines={1}>
+          {decodeHtmlEntities(item.primaryArtists)}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderArtistCircle = ({ item }: { item: any }) => {
     const imageUrl = typeof item.image === 'string' 
       ? item.image 
-      : item.image?.[2]?.link || item.image?.[0]?.link;
+      : getImageUrl(item.image);
     
     return (
-      <TouchableOpacity style={styles.artistCircleContainer}>
+      <TouchableOpacity 
+        style={styles.artistCircleContainer}
+        activeOpacity={0.7}
+        onPress={() => console.log('Artist clicked:', item.name)}
+      >
         <Image 
           source={{ uri: imageUrl }} 
           style={[styles.artistCircle, { backgroundColor: theme.card }]} 
         />
         <Text style={[styles.artistName, { color: theme.textPrimary }]} numberOfLines={1}>
-          {item.name}
+          {decodeHtmlEntities(item.name)}
         </Text>
       </TouchableOpacity>
     );
@@ -145,11 +165,16 @@ export const HomeScreen = () => {
 
   const renderSongRow = ({ item }: { item: Song }) => {
     const isPlaying = currentSong?.id === item.id;
+    const imageUrl = getImageUrl(item.image);
     
     return (
-      <TouchableOpacity style={styles.rowItem} onPress={() => handlePlay(item)}>
+      <TouchableOpacity 
+        style={styles.rowItem} 
+        onPress={() => handlePlay(item)}
+        activeOpacity={0.7}
+      >
         <Image 
-          source={{ uri: item.image?.[1]?.link || item.image?.[0]?.link }} 
+          source={{ uri: imageUrl }} 
           style={[styles.rowImg, { backgroundColor: theme.card }]} 
         />
         <View style={{ flex: 1, marginLeft: 15 }}>
@@ -160,19 +185,30 @@ export const HomeScreen = () => {
             ]} 
             numberOfLines={1}
           >
-            {item.name}
+            {decodeHtmlEntities(item.name)}
           </Text>
           <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
-            {item.primaryArtists}
+            {decodeHtmlEntities(item.primaryArtists)}
           </Text>
         </View>
         <TouchableOpacity 
-          onPress={() => handlePlay(item)} 
+          onPress={(e) => {
+            e.stopPropagation();
+            handlePlay(item);
+          }} 
           style={[styles.playMini, { borderColor: theme.border }]}
+          activeOpacity={0.7}
         >
           <Ionicons name="play" size={12} color={theme.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={{ padding: 8 }} onPress={() => openMenu(item)}>
+        <TouchableOpacity 
+          style={{ padding: 8 }} 
+          onPress={(e) => {
+            e.stopPropagation();
+            openMenu(item);
+          }}
+          activeOpacity={0.7}
+        >
           <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -182,36 +218,43 @@ export const HomeScreen = () => {
   const renderArtistRow = ({ item }: { item: any }) => {
     const imageUrl = typeof item.image === 'string' 
       ? item.image 
-      : item.image?.[2]?.link || item.image?.[0]?.link;
+      : getImageUrl(item.image);
 
     return (
-      <TouchableOpacity style={styles.rowItem}>
+      <TouchableOpacity 
+        style={styles.rowItem}
+        activeOpacity={0.7}
+        onPress={() => console.log('Artist row clicked:', item.name)}
+      >
         <Image 
           source={{ uri: imageUrl }} 
           style={[styles.artistRowImg, { backgroundColor: theme.card }]} 
         />
         <View style={{ flex: 1, marginLeft: 15 }}>
           <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>
-            {item.name}
+            {decodeHtmlEntities(item.name)}
           </Text>
           <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
             {item.role || 'Artist'}
           </Text>
         </View>
-        <TouchableOpacity>
-          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
-        </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
       </TouchableOpacity>
     );
   };
 
   const renderAlbumGrid = ({ item }: { item: any }) => {
     const cardWidth = (width - 48) / 2;
+    const imageUrl = getImageUrl(item.image);
     
     return (
-      <TouchableOpacity style={[styles.albumCard, { width: cardWidth }]}>
+      <TouchableOpacity 
+        style={[styles.albumCard, { width: cardWidth }]}
+        activeOpacity={0.7}
+        onPress={() => console.log('Album clicked:', item.name)}
+      >
         <Image 
-          source={{ uri: item.image?.[2]?.link || item.image?.[0]?.link }} 
+          source={{ uri: imageUrl }} 
           style={[
             styles.albumImg, 
             { width: cardWidth, height: cardWidth, backgroundColor: theme.card }
@@ -222,7 +265,7 @@ export const HomeScreen = () => {
             style={[styles.rowTitle, { color: theme.textPrimary, fontSize: 14 }]} 
             numberOfLines={1}
           >
-            {item.name}
+            {decodeHtmlEntities(item.name)}
           </Text>
           <Text 
             style={[styles.rowSub, { color: theme.textSecondary, fontSize: 12 }]} 
@@ -244,9 +287,11 @@ export const HomeScreen = () => {
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
               Recently Played
             </Text>
-            <Text style={{ color: theme.primary, fontWeight: '600' }}>
-              See All
-            </Text>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={{ color: theme.primary, fontWeight: '600' }}>
+                See All
+              </Text>
+            </TouchableOpacity>
           </View>
           <FlatList 
             horizontal 
@@ -261,9 +306,11 @@ export const HomeScreen = () => {
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
               Artists
             </Text>
-            <Text style={{ color: theme.primary, fontWeight: '600' }}>
-              See All
-            </Text>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={{ color: theme.primary, fontWeight: '600' }}>
+                See All
+              </Text>
+            </TouchableOpacity>
           </View>
           <FlatList 
             horizontal 
@@ -310,17 +357,21 @@ export const HomeScreen = () => {
         data={songs} 
         renderItem={renderSongRow} 
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 160 }}
         ListHeaderComponent={
           <View style={styles.songHeaderContainer}>
             <TouchableOpacity 
               style={[styles.bigShuffleBtn, { backgroundColor: theme.primary }]}
+              activeOpacity={0.7}
+              onPress={() => console.log('Shuffle clicked')}
             >
               <Ionicons name="shuffle" size={20} color="#FFF" />
               <Text style={styles.bigBtnTextWhite}>Shuffle</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.bigPlayBtn, { backgroundColor: theme.lightPrimary }]}
+              activeOpacity={0.7}
+              onPress={() => songs.length > 0 && handlePlay(songs[0])}
             >
               <Ionicons name="play-circle" size={20} color={theme.primary} />
               <Text style={[styles.bigBtnTextColor, { color: theme.primary }]}>
@@ -354,7 +405,10 @@ export const HomeScreen = () => {
             {' '}Lokal Music
           </Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Search' as never)}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('Search' as never)}
+          activeOpacity={0.7}
+        >
           <Ionicons name="search-outline" size={26} color={theme.textPrimary} />
         </TouchableOpacity>
       </View>
@@ -370,7 +424,11 @@ export const HomeScreen = () => {
           renderItem={({ item }) => {
             const isActive = activeCategory === item;
             return (
-              <TouchableOpacity onPress={() => setActiveCategory(item)} style={styles.tab}>
+              <TouchableOpacity 
+                onPress={() => setActiveCategory(item)} 
+                style={styles.tab}
+                activeOpacity={0.7}
+              >
                 <Text 
                   style={[
                     styles.tabText, 
@@ -400,6 +458,7 @@ export const HomeScreen = () => {
           <TouchableOpacity 
             style={{flexDirection:'row', alignItems:'center'}} 
             onPress={() => setSortVisible(true)}
+            activeOpacity={0.7}
           >
             <Text style={{color: theme.primary, fontWeight:'600', fontSize: 12}}>
               {sortOption}{' '}
@@ -427,36 +486,39 @@ export const HomeScreen = () => {
           activeOpacity={1} 
           onPress={() => setSortVisible(false)}
         >
-          <View style={[styles.sortSheet, { backgroundColor: theme.card }]}>
-            {SORT_OPTIONS.map((opt) => {
-              const isSelected = sortOption === opt;
-              return (
-                <TouchableOpacity 
-                  key={opt} 
-                  style={styles.sortOption} 
-                  onPress={() => {
-                    setSortOption(opt); 
-                    setSortVisible(false);
-                  }}
-                >
-                  <Text style={[styles.sortText, { color: theme.textPrimary }]}>
-                    {opt}
-                  </Text>
-                  <View 
-                    style={[
-                      styles.radio, 
-                      { borderColor: theme.primary }, 
-                      isSelected && styles.radioActive
-                    ]}
+          <TouchableOpacity activeOpacity={1}>
+            <View style={[styles.sortSheet, { backgroundColor: theme.card }]}>
+              {SORT_OPTIONS.map((opt) => {
+                const isSelected = sortOption === opt;
+                return (
+                  <TouchableOpacity 
+                    key={opt} 
+                    style={styles.sortOption} 
+                    onPress={() => {
+                      setSortOption(opt); 
+                      setSortVisible(false);
+                    }}
+                    activeOpacity={0.7}
                   >
-                    {isSelected && (
-                      <View style={[styles.radioInner, { backgroundColor: theme.primary }]} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    <Text style={[styles.sortText, { color: theme.textPrimary }]}>
+                      {opt}
+                    </Text>
+                    <View 
+                      style={[
+                        styles.radio, 
+                        { borderColor: theme.primary }, 
+                        isSelected && styles.radioActive
+                      ]}
+                    >
+                      {isSelected && (
+                        <View style={[styles.radioInner, { backgroundColor: theme.primary }]} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
@@ -472,54 +534,59 @@ export const HomeScreen = () => {
           activeOpacity={1} 
           onPress={() => setMenuVisible(false)}
         >
-          <View style={[styles.actionSheet, { backgroundColor: theme.card }]}>
-            <View style={styles.handleBar} />
-            {selectedSong && (
-              <View style={[styles.actionHeader, { borderBottomColor: theme.border }]}>
-                <Image 
-                  source={{ uri: selectedSong.image?.[2]?.link || selectedSong.image?.[0]?.link }} 
-                  style={styles.actionImg} 
-                />
-                <View style={{flex:1, marginLeft:15}}>
-                  <Text 
-                    style={[styles.actionTitle, { color: theme.textPrimary }]} 
-                    numberOfLines={1}
-                  >
-                    {selectedSong.name}
-                  </Text>
-                  <Text style={[styles.actionSub, { color: theme.textSecondary }]}>
-                    {selectedSong.primaryArtists}
-                  </Text>
+          <TouchableOpacity activeOpacity={1}>
+            <View style={[styles.actionSheet, { backgroundColor: theme.card }]}>
+              <View style={styles.handleBar} />
+              {selectedSong && (
+                <View style={[styles.actionHeader, { borderBottomColor: theme.border }]}>
+                  <Image 
+                    source={{ uri: getImageUrl(selectedSong.image) }} 
+                    style={styles.actionImg} 
+                  />
+                  <View style={{flex:1, marginLeft:15}}>
+                    <Text 
+                      style={[styles.actionTitle, { color: theme.textPrimary }]} 
+                      numberOfLines={1}
+                    >
+                      {decodeHtmlEntities(selectedSong.name)}
+                    </Text>
+                    <Text style={[styles.actionSub, { color: theme.textSecondary }]}>
+                      {decodeHtmlEntities(selectedSong.primaryArtists)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity activeOpacity={0.7}>
+                    <Ionicons name="heart-outline" size={24} color={theme.textPrimary} />
+                  </TouchableOpacity>
                 </View>
-                <Ionicons name="heart-outline" size={24} color={theme.textPrimary} />
-              </View>
-            )}
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {[
-                {l: 'Play Next', i: 'arrow-forward-circle-outline'},
-                {l: 'Add to Playing Queue', i: 'list-circle-outline'},
-                {l: 'Add to Playlist', i: 'add-circle-outline'},
-                {l: 'Go to Album', i: 'disc-outline'},
-                {l: 'Go to Artist', i: 'person-outline'},
-                {l: 'Details', i: 'information-circle-outline'},
-                {l: 'Set as Ringtone', i: 'call-outline'},
-                {l: 'Add to Blacklist', i: 'close-circle-outline'},
-                {l: 'Share', i: 'share-social-outline'},
-                {l: 'Delete from Device', i: 'trash-outline'},
-              ].map((a) => (
-                <TouchableOpacity 
-                  key={a.l} 
-                  style={styles.actionItem} 
-                  onPress={() => handleMenuAction(a.l)}
-                >
-                  <Ionicons name={a.i as any} size={22} color={theme.textPrimary} />
-                  <Text style={[styles.actionText, { color: theme.textPrimary }]}>
-                    {a.l}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              )}
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {[
+                  {l: 'Play Next', i: 'arrow-forward-circle-outline'},
+                  {l: 'Add to Playing Queue', i: 'list-circle-outline'},
+                  {l: 'Add to Playlist', i: 'add-circle-outline'},
+                  {l: 'Go to Album', i: 'disc-outline'},
+                  {l: 'Go to Artist', i: 'person-outline'},
+                  {l: 'Details', i: 'information-circle-outline'},
+                  {l: 'Set as Ringtone', i: 'call-outline'},
+                  {l: 'Add to Blacklist', i: 'close-circle-outline'},
+                  {l: 'Share', i: 'share-social-outline'},
+                  {l: 'Delete from Device', i: 'trash-outline'},
+                ].map((a) => (
+                  <TouchableOpacity 
+                    key={a.l} 
+                    style={styles.actionItem} 
+                    onPress={() => handleMenuAction(a.l)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name={a.i as any} size={22} color={theme.textPrimary} />
+                    <Text style={[styles.actionText, { color: theme.textPrimary }]}>
+                      {a.l}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
@@ -557,7 +624,6 @@ const styles = StyleSheet.create({
   artistCircle: { width: 80, height: 80, borderRadius: 40, marginBottom: 8 },
   artistName: { fontSize: 13, fontWeight: '500' },
   
-  // Big Buttons
   songHeaderContainer: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
