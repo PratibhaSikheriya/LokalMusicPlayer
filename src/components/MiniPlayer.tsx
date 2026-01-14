@@ -1,4 +1,6 @@
-import React from 'react';
+// src/components/MiniPlayer.tsx
+
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayerStore } from '../store/playerStore';
@@ -12,42 +14,100 @@ export const MiniPlayer = () => {
   const { currentSong, isPlaying, position, duration } = usePlayerStore();
   const { mode } = useThemeStore();
   const scheme = useColorScheme();
-  const theme = mode === 'system' ? (scheme === 'dark' ? Colors.dark : Colors.light) : Colors[mode];
+  const theme = mode === 'system' 
+    ? (scheme === 'dark' ? Colors.dark : Colors.light) 
+    : Colors[mode];
 
-  if (!currentSong) return null;
+  const [isPlayerScreenOpen, setIsPlayerScreenOpen] = useState(false);
 
-  const imageUrl = currentSong.image?.[2]?.link || currentSong.image?.[0]?.link;
+  useEffect(() => {
+    // Listen to navigation state changes
+    const unsubscribe = navigation.addListener('state', () => {
+      // Get the current route from navigation
+      const state = navigation.getState();
+      const currentRoute = state?.routes[state.index];
+      
+      // Hide mini player if on Player screen
+      if (currentRoute?.name === 'Player') {
+        setIsPlayerScreenOpen(true);
+      } else {
+        setIsPlayerScreenOpen(false);
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // Hide mini player if no song or if Player screen is open
+  if (!currentSong || isPlayerScreenOpen) {
+    return null;
+  }
+
+  const imageUrl = 
+    currentSong.image?.[2]?.url || 
+    currentSong.image?.[2]?.link || 
+    currentSong.image?.[1]?.url || 
+    currentSong.image?.[1]?.link || 
+    currentSong.image?.[0]?.url || 
+    currentSong.image?.[0]?.link;
+
+  const artistName = currentSong.primaryArtists || 'Unknown Artist';
   const progress = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
     <TouchableOpacity
-      activeOpacity={0.95}
+      activeOpacity={0.9}
       onPress={() => navigation.navigate('Player' as never)}
       style={[styles.container, { backgroundColor: theme.card, borderTopColor: theme.border }]}
     >
-      <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
+      <View style={[styles.progressBarBg, { backgroundColor: theme.border }]}>
+        <View 
+          style={[
+            styles.progressBar, 
+            { width: `${Math.min(progress, 100)}%`, backgroundColor: theme.primary }
+          ]} 
+        />
       </View>
 
       <View style={styles.content}>
         <View style={styles.leftSection}>
-          <Image source={{ uri: imageUrl }} style={styles.image} />
-          <View style={styles.textContainer}>
-            <Text style={[styles.title, { color: theme.textPrimary }]} numberOfLines={1}>
+          <Image 
+            source={{ uri: imageUrl }} 
+            style={[styles.albumArt, { backgroundColor: theme.border }]} 
+          />
+          <View style={styles.songInfo}>
+            <Text style={[styles.songTitle, { color: theme.textPrimary }]} numberOfLines={1}>
               {currentSong.name}
             </Text>
-            <Text style={[styles.artist, { color: theme.textSecondary }]} numberOfLines={1}>
-              {currentSong.primaryArtists}
+            <Text style={[styles.artistName, { color: theme.textSecondary }]} numberOfLines={1}>
+              {artistName}
             </Text>
           </View>
         </View>
 
-        <View style={styles.controls}>
-          <TouchableOpacity onPress={() => audioService.togglePlayPause()} style={styles.controlButton}>
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={28} color={theme.primary} />
+        <View style={styles.controlsContainer}>
+          <TouchableOpacity 
+            onPress={() => audioService.togglePlayPause()} 
+            style={styles.playButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons 
+              name={isPlaying ? 'pause' : 'play'} 
+              size={26} 
+              color={theme.textPrimary} 
+            />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => audioService.playNext()} style={styles.controlButton}>
-            <Ionicons name="play-skip-forward" size={24} color={theme.textPrimary} />
+
+          <TouchableOpacity 
+            onPress={() => audioService.playNext()} 
+            style={styles.nextButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons 
+              name="play-skip-forward" 
+              size={24} 
+              color={theme.textPrimary} 
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -57,17 +117,72 @@ export const MiniPlayer = () => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute', bottom: 58, left: 0, right: 0, height: 72,
-    borderTopWidth: 1, elevation: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.2, shadowRadius: 10,
+    position: 'absolute',
+    bottom: 60,
+    left: 0,
+    right: 0,
+    height: 64,
+    borderTopWidth: 0.5,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  progressBarContainer: { height: 2, width: '100%', position: 'absolute', top: 0, zIndex: 10 },
-  progressBar: { height: '100%' },
-  content: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
-  leftSection: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  image: { width: 48, height: 48, borderRadius: 8, marginRight: 12 },
-  textContainer: { flex: 1, paddingRight: 12 },
-  title: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  artist: { fontSize: 13 },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingRight: 4 },
-  controlButton: { padding: 4 },
+  progressBarBg: {
+    height: 2,
+    width: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 1,
+  },
+  content: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 2,
+  },
+  leftSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  albumArt: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  songInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  songTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 3,
+  },
+  artistName: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  playButton: {
+    padding: 6,
+  },
+  nextButton: {
+    padding: 6,
+  },
 });

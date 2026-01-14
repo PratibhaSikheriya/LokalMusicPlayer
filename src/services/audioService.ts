@@ -1,37 +1,32 @@
+// src/services/audioService.ts
+
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS, AVPlaybackStatus } from 'expo-av';
 import { usePlayerStore } from '../store/playerStore';
 import { useQueueStore } from '../store/queueStore';
 import { Song } from '../types';
-
-
+import { saavnApi } from '../api/saavn';
 
 let soundObject: Audio.Sound | null = null;
 
-// SMART URL FINDER: Extracts the best audio link from messy API data
 const getStreamUrl = (song: Song): string | null => {
   if (!song) return null;
   
   const sources = song.downloadUrl;
   
-  // 1. Handle Array (Standard API behavior: [12kbps, ..., 320kbps])
   if (Array.isArray(sources) && sources.length > 0) {
-    // Try to find 320kbps, then 160kbps, otherwise take the last one (usually highest)
     const best = sources.find((s: any) => s.quality === '320kbps') || 
                  sources.find((s: any) => s.quality === '160kbps') || 
                  sources[sources.length - 1];
-    return best?.link || null;
+    
+    return best?.url || best?.link || null;
   }
   
-  // 2. Handle String (fallback)
   if (typeof sources === 'string') return sources;
   
   return null;
 };
 
 export const audioService = {
-  /**
-   * Setup audio mode for background playback
-   */
   async setupAudio(): Promise<void> {
     try {
       await Audio.setAudioModeAsync({
@@ -47,9 +42,6 @@ export const audioService = {
     }
   },
 
-  /**
-   * Handle playback status updates
-   */
   onPlaybackStatusUpdate(status: AVPlaybackStatus): void {
     const { setProgress, setIsPlaying } = usePlayerStore.getState();
     
@@ -57,7 +49,6 @@ export const audioService = {
       setProgress(status.positionMillis, status.durationMillis || 0);
       setIsPlaying(status.isPlaying);
       
-      // Auto-play next song when current finishes
       if (status.didJustFinish) {
         audioService.playNext();
       }
@@ -66,30 +57,45 @@ export const audioService = {
     }
   },
 
-  /**
-   * Load and play a song
-   */
   async loadAndPlay(song: Song): Promise<void> {
     const { setCurrentSong, setIsPlaying } = usePlayerStore.getState();
-    const uri = getStreamUrl(song);
-
-    if (!uri) {
-      console.error(`Cannot play "${song.name}". No audio link found.`);
-      alert(`Cannot play "${song.name}". No audio link found.`);
-      return; 
-    }
-
+    
     try {
-      // Unload previous sound
+      console.log('Attempting to play:', song.name);
+      
+      let fullSong = song;
+      
+      if (!song.downloadUrl || !getStreamUrl(song)) {
+        console.log('Fetching full song details for:', song.id);
+        const details = await saavnApi.getSongById(song.id);
+        
+        if (!details) {
+          console.error('Could not fetch details for:', song.name);
+          alert(`Cannot play "${song.name}". Failed to fetch song details.`);
+          return;
+        }
+        
+        fullSong = details;
+        console.log('Full song details fetched');
+      }
+      
+      const uri = getStreamUrl(fullSong);
+
+      if (!uri) {
+        console.error('Cannot play:', song.name, '- No audio link found');
+        alert(`Cannot play "${song.name}". No audio link available.`);
+        return; 
+      }
+
+      console.log('Stream URL found');
+
       if (soundObject) {
         await soundObject.unloadAsync();
         soundObject = null;
       }
 
-      // Setup audio mode
       await this.setupAudio();
       
-      // Create and load new sound
       const { sound } = await Audio.Sound.createAsync(
         { uri },
         { shouldPlay: true, progressUpdateIntervalMillis: 1000 },
@@ -97,10 +103,10 @@ export const audioService = {
       );
 
       soundObject = sound;
-      setCurrentSong(song);
+      setCurrentSong(fullSong);
       setIsPlaying(true);
       
-      console.log(`Now playing: ${song.name}`);
+      console.log('Now playing:', song.name);
     } catch (error) {
       console.error('Playback Error:', error);
       alert(`Failed to play "${song.name}". Please try again.`);
@@ -108,9 +114,6 @@ export const audioService = {
     }
   },
 
-  /**
-   * Toggle between play and pause
-   */
   async togglePlayPause(): Promise<void> {
     const { isPlaying, setIsPlaying } = usePlayerStore.getState();
     
@@ -132,16 +135,12 @@ export const audioService = {
     }
   },
 
-  /**
-   * Play next song in queue
-   */
   async playNext(): Promise<void> {
     const next = useQueueStore.getState().playNext();
     
     if (next) {
       await this.loadAndPlay(next);
     } else {
-      // No more songs in queue
       if (soundObject) {
         try {
           await soundObject.stopAsync();
@@ -154,9 +153,6 @@ export const audioService = {
     }
   },
 
-  /**
-   * Play previous song in queue
-   */
   async playPrevious(): Promise<void> {
     const prev = useQueueStore.getState().playPrevious();
     
@@ -167,9 +163,6 @@ export const audioService = {
     }
   },
 
-  /**
-   * Seek to a specific position in the current track (position in milliseconds)
-   */
   async seek(position: number): Promise<void> {
     if (!soundObject) {
       console.warn('No sound object available');
@@ -183,9 +176,6 @@ export const audioService = {
     }
   },
 
-  /**
-   * Stop playback and cleanup
-   */
   async stop(): Promise<void> {
     if (soundObject) {
       try {
@@ -201,9 +191,6 @@ export const audioService = {
     setIsPlaying(false);
   },
 
-  /**
-   * Get current playback status
-   */
   async getStatus(): Promise<AVPlaybackStatus | null> {
     if (!soundObject) return null;
     
@@ -215,9 +202,6 @@ export const audioService = {
     }
   },
 
-  /**
-   * Set volume (0.0 to 1.0)
-   */
   async setVolume(volume: number): Promise<void> {
     if (!soundObject) return;
     
@@ -229,9 +213,6 @@ export const audioService = {
     }
   },
 
-  /**
-   * Set playback rate (0.5 to 2.0)
-   */
   async setRate(rate: number): Promise<void> {
     if (!soundObject) return;
     

@@ -1,3 +1,5 @@
+// src/screens/HomeScreen.tsx
+
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
@@ -40,28 +42,37 @@ export const HomeScreen = () => {
   const { setQueue } = useQueueStore();
 
   useEffect(() => { 
+    console.log('🎵 HomeScreen mounted');
     loadAllData(); 
   }, []);
 
   const loadAllData = async () => {
+    console.log('🚀 Loading data...');
     setIsLoading(true);
     try {
       // 1. Fetch Songs (Trending)
+      console.log('📥 Fetching songs...');
       const songData = await saavnApi.getTrending();
+      console.log('✅ Songs loaded:', songData.length);
       setSongs(songData);
 
       // 2. Fetch Artists (Initial Load)
-      const artistData = await saavnApi.searchArtists('popular artists');
+      console.log('📥 Fetching artists...');
+      const artistData = await saavnApi.searchArtists('arijit singh');
+      console.log('✅ Artists loaded:', artistData.length);
       setArtists(artistData);
 
       // 3. Fetch Albums (Initial Load)
-      const albumData = await saavnApi.searchAlbums('latest albums');
+      console.log('📥 Fetching albums...');
+      const albumData = await saavnApi.searchAlbums('bollywood');
+      console.log('✅ Albums loaded:', albumData.length);
       setAlbums(albumData);
 
     } catch (e) { 
-      console.error(e); 
+      console.error('❌ Error:', e); 
     }
     setIsLoading(false);
+    console.log('✅ Loading complete');
   };
 
   const handlePlay = (song: Song) => {
@@ -114,17 +125,23 @@ export const HomeScreen = () => {
     </TouchableOpacity>
   );
 
-  const renderArtistCircle = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.artistCircleContainer}>
-      <Image 
-        source={{ uri: item.image }} 
-        style={[styles.artistCircle, { backgroundColor: theme.card }]} 
-      />
-      <Text style={[styles.artistName, { color: theme.textPrimary }]} numberOfLines={1}>
-        {item.name}
-      </Text>
-    </TouchableOpacity>
-  );
+  const renderArtistCircle = ({ item }: { item: any }) => {
+    const imageUrl = typeof item.image === 'string' 
+      ? item.image 
+      : item.image?.[2]?.link || item.image?.[0]?.link;
+    
+    return (
+      <TouchableOpacity style={styles.artistCircleContainer}>
+        <Image 
+          source={{ uri: imageUrl }} 
+          style={[styles.artistCircle, { backgroundColor: theme.card }]} 
+        />
+        <Text style={[styles.artistName, { color: theme.textPrimary }]} numberOfLines={1}>
+          {item.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderSongRow = ({ item }: { item: Song }) => {
     const isPlaying = currentSong?.id === item.id;
@@ -162,25 +179,31 @@ export const HomeScreen = () => {
     );
   };
 
-  const renderArtistRow = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.rowItem}>
-      <Image 
-        source={{ uri: item.image }} 
-        style={[styles.artistRowImg, { backgroundColor: theme.card }]} 
-      />
-      <View style={{ flex: 1, marginLeft: 15 }}>
-        <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>
-          {item.name}
-        </Text>
-        <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
-          {item.role || 'Artist'}
-        </Text>
-      </View>
-      <TouchableOpacity>
-        <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+  const renderArtistRow = ({ item }: { item: any }) => {
+    const imageUrl = typeof item.image === 'string' 
+      ? item.image 
+      : item.image?.[2]?.link || item.image?.[0]?.link;
+
+    return (
+      <TouchableOpacity style={styles.rowItem}>
+        <Image 
+          source={{ uri: imageUrl }} 
+          style={[styles.artistRowImg, { backgroundColor: theme.card }]} 
+        />
+        <View style={{ flex: 1, marginLeft: 15 }}>
+          <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
+            {item.role || 'Artist'}
+          </Text>
+        </View>
+        <TouchableOpacity>
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderAlbumGrid = ({ item }: { item: any }) => {
     const cardWidth = (width - 48) / 2;
