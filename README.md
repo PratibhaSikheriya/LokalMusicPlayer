@@ -112,6 +112,7 @@ lokal-music-player/
 ├── package-lock.js
 ├── package.json                   # Dependencies
 └── tsconfig.json                  # TypeScript configuration
+└── README.md
 ```
 
 ## 🏗️ Architecture
