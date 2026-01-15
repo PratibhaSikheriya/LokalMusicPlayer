@@ -1,9 +1,7 @@
-// src/screens/HomeScreen.tsx
-
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Image, StatusBar, Modal, ActivityIndicator, Dimensions, ScrollView
+  Image, StatusBar, Modal, ActivityIndicator, Dimensions, ScrollView, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +24,7 @@ const { width } = Dimensions.get('window');
 
 export const HomeScreen = () => {
   const navigation = useNavigation();
-  const [activeCategory, setActiveCategory] = useState('Suggested');
+  const [activeCategory, setActiveCategory] = useState('Songs'); // Default to Songs to see buttons
   
   const [songs, setSongs] = useState<Song[]>([]);
   const [artists, setArtists] = useState<any[]>([]);
@@ -47,6 +45,7 @@ export const HomeScreen = () => {
   const { currentSong } = usePlayerStore();
   const { setQueue } = useQueueStore();
   
+  // Hook moved inside component
   const { getMostPlayed } = useMusicStore();
   const mostPlayedSongs = getMostPlayed();
 
@@ -98,6 +97,23 @@ export const HomeScreen = () => {
     audioService.loadAndPlay(song);
   };
 
+  // SHUFFLE LOGIC
+  const handleShufflePlay = () => {
+    if (songs.length > 0) {
+      const shuffled = [...songs].sort(() => Math.random() - 0.5);
+      setQueue(shuffled);
+      audioService.loadAndPlay(shuffled[0]);
+    }
+  };
+
+  // PLAY ALL LOGIC
+  const handlePlayAll = () => {
+    if (songs.length > 0) {
+      setQueue(songs);
+      audioService.loadAndPlay(songs[0]);
+    }
+  };
+
   const openMenu = (song: Song) => {
     setSelectedSong(song);
     setMenuVisible(true);
@@ -131,16 +147,9 @@ export const HomeScreen = () => {
         onPress={() => handlePlay(item)}
         activeOpacity={0.7}
       >
-        <Image 
-          source={{ uri: imageUrl }} 
-          style={[styles.horizImg, { backgroundColor: theme.card }]} 
-        />
-        <Text style={[styles.horizTitle, { color: theme.textPrimary }]} numberOfLines={2}>
-          {decodeHtmlEntities(item.name)}
-        </Text>
-        <Text style={[styles.horizSub, { color: theme.textSecondary }]} numberOfLines={1}>
-          {decodeHtmlEntities(item.primaryArtists)}
-        </Text>
+        <Image source={{ uri: imageUrl }} style={[styles.horizImg, { backgroundColor: theme.card }]} />
+        <Text style={[styles.horizTitle, { color: theme.textPrimary }]} numberOfLines={2}>{decodeHtmlEntities(item.name)}</Text>
+        <Text style={[styles.horizSub, { color: theme.textSecondary }]} numberOfLines={1}>{decodeHtmlEntities(item.primaryArtists)}</Text>
       </TouchableOpacity>
     );
   };
@@ -153,13 +162,8 @@ export const HomeScreen = () => {
         activeOpacity={0.7}
         onPress={() => handleArtistClick(item)}
       >
-        <Image 
-          source={{ uri: imageUrl }} 
-          style={[styles.artistCircle, { backgroundColor: theme.card, borderColor: theme.border }]} 
-        />
-        <Text style={[styles.artistName, { color: theme.textPrimary }]} numberOfLines={1}>
-          {decodeHtmlEntities(item.name)}
-        </Text>
+        <Image source={{ uri: imageUrl }} style={[styles.artistCircle, { backgroundColor: theme.card, borderColor: theme.border }]} />
+        <Text style={[styles.artistName, { color: theme.textPrimary }]} numberOfLines={1}>{decodeHtmlEntities(item.name)}</Text>
       </TouchableOpacity>
     );
   };
@@ -174,18 +178,12 @@ export const HomeScreen = () => {
         onPress={() => handlePlay(item)}
         activeOpacity={0.7}
       >
-        <Image 
-          source={{ uri: imageUrl }} 
-          style={[styles.rowImg, { backgroundColor: theme.card }]} 
-        />
+        <Image source={{ uri: imageUrl }} style={[styles.rowImg, { backgroundColor: theme.card }]} />
         <View style={{ flex: 1, marginLeft: 15 }}>
-          <Text 
-            style={[styles.rowTitle, { color: isPlaying ? theme.primary : theme.textPrimary }]} 
-            numberOfLines={1}
-          >
+          <Text style={[styles.rowTitle, { color: isPlaying ? theme.primary : theme.textPrimary }]} numberOfLines={1}>
             {decodeHtmlEntities(item.name)}
           </Text>
-          <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
+          <Text style={[styles.rowSub, { color: theme.textSecondary }]} numberOfLines={1}>
             {decodeHtmlEntities(item.primaryArtists)}
           </Text>
         </View>
@@ -221,17 +219,10 @@ export const HomeScreen = () => {
         activeOpacity={0.7}
         onPress={() => handleArtistClick(item)}
       >
-        <Image 
-          source={{ uri: imageUrl }} 
-          style={[styles.artistRowImg, { backgroundColor: theme.card }]} 
-        />
+        <Image source={{ uri: imageUrl }} style={[styles.artistRowImg, { backgroundColor: theme.card }]} />
         <View style={{ flex: 1, marginLeft: 15 }}>
-          <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>
-            {decodeHtmlEntities(item.name)}
-          </Text>
-          <Text style={[styles.rowSub, { color: theme.textSecondary }]}>
-            {item.role || 'Artist'}
-          </Text>
+          <Text style={[styles.rowTitle, { color: theme.textPrimary }]}>{decodeHtmlEntities(item.name)}</Text>
+          <Text style={[styles.rowSub, { color: theme.textSecondary }]}>{item.role || 'Artist'}</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
       </TouchableOpacity>
@@ -247,17 +238,10 @@ export const HomeScreen = () => {
         activeOpacity={0.7}
         onPress={() => handleAlbumClick(item)}
       >
-        <Image 
-          source={{ uri: imageUrl }} 
-          style={[styles.albumImg, { width: cardWidth, height: cardWidth, backgroundColor: theme.card }]} 
-        />
+        <Image source={{ uri: imageUrl }} style={[styles.albumImg, { width: cardWidth, height: cardWidth, backgroundColor: theme.card }]} />
         <View style={{ marginTop: 8 }}>
-          <Text style={[styles.rowTitle, { color: theme.textPrimary, fontSize: 14 }]} numberOfLines={1}>
-            {decodeHtmlEntities(item.name)}
-          </Text>
-          <Text style={[styles.rowSub, { color: theme.textSecondary, fontSize: 12 }]} numberOfLines={1}>
-            {item.year || '2023'}
-          </Text>
+          <Text style={[styles.rowTitle, { color: theme.textPrimary, fontSize: 14 }]} numberOfLines={1}>{decodeHtmlEntities(item.name)}</Text>
+          <Text style={[styles.rowSub, { color: theme.textSecondary, fontSize: 12 }]} numberOfLines={1}>{item.year || '2023'}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -361,27 +345,24 @@ export const HomeScreen = () => {
         }
         ListHeaderComponent={
           <View style={styles.songHeaderContainer}>
+            {/* SHUFFLE BUTTON */}
             <TouchableOpacity 
-              style={[styles.bigShuffleBtn, { backgroundColor: theme.primary }]}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (songs.length > 0) {
-                  const shuffled = [...songs].sort(() => Math.random() - 0.5);
-                  setQueue(shuffled);
-                  handlePlay(shuffled[0]);
-                }
-              }}
+              style={[styles.bigBtn, { backgroundColor: '#FF6B00', marginRight: 10 }]}
+              activeOpacity={0.8}
+              onPress={handleShufflePlay}
             >
-              <Ionicons name="shuffle" size={20} color="#FFF" />
-              <Text style={styles.bigBtnTextWhite}>Shuffle</Text>
+              <Ionicons name="shuffle" size={22} color="#FFF" />
+              <Text style={styles.btnTextWhite}>Shuffle</Text>
             </TouchableOpacity>
+            
+            {/* PLAY BUTTON */}
             <TouchableOpacity 
-              style={[styles.bigPlayBtn, { backgroundColor: theme.lightPrimary }]}
-              activeOpacity={0.7}
-              onPress={() => songs.length > 0 && handlePlay(songs[0])}
+              style={[styles.bigBtn, { backgroundColor: '#2A2A2A', marginLeft: 10 }]}
+              activeOpacity={0.8}
+              onPress={handlePlayAll}
             >
-              <Ionicons name="play-circle" size={20} color={theme.primary} />
-              <Text style={[styles.bigBtnTextColor, { color: theme.primary }]}>Play</Text>
+              <Ionicons name="play" size={22} color="#FF6B00" />
+              <Text style={styles.btnTextOrange}>Play</Text>
             </TouchableOpacity>
           </View>
         }
@@ -408,12 +389,23 @@ export const HomeScreen = () => {
           <Ionicons name="musical-notes" size={28} color={theme.primary} />
           <Text style={[styles.appTitle, { color: theme.textPrimary }]}> Lokal Music</Text>
         </View>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('Search' as never)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="search-outline" size={26} color={theme.textPrimary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* QUEUE BUTTON (ADDED HERE) */}
+          <TouchableOpacity 
+            onPress={() => (navigation as any).navigate('Queue')}
+            activeOpacity={0.7}
+            style={{ marginRight: 15 }}
+          >
+            <Ionicons name="list" size={26} color={theme.textPrimary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Search' as never)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="search-outline" size={26} color={theme.textPrimary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tabs */}
@@ -540,21 +532,14 @@ const styles = StyleSheet.create({
   artistCircle: { width: 80, height: 80, borderRadius: 40, marginBottom: 8, borderWidth: 1 },
   artistName: { fontSize: 13, fontWeight: '500' },
   
-  songHeaderContainer: { 
-    flexDirection: 'row', justifyContent: 'space-between', 
-    paddingHorizontal: 24, paddingVertical: 15 
-  },
-  bigShuffleBtn: { 
+  // NEW STYLES FOR BUTTONS
+  songHeaderContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 15 },
+  bigBtn: { 
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
-    paddingVertical: 14, borderRadius: 30, marginRight: 10, 
-    shadowColor: '#FF6B00', shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 
+    paddingVertical: 14, borderRadius: 30 
   },
-  bigPlayBtn: { 
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
-    paddingVertical: 14, borderRadius: 30, marginLeft: 10 
-  },
-  bigBtnTextWhite: { color: '#FFF', fontWeight: '700', fontSize: 16, marginLeft: 8 },
-  bigBtnTextColor: { fontWeight: '700', fontSize: 16, marginLeft: 8 },
+  btnTextWhite: { color: '#FFF', fontWeight: '700', fontSize: 16, marginLeft: 8 },
+  btnTextOrange: { color: '#FF6B00', fontWeight: '700', fontSize: 16, marginLeft: 8 },
 
   rowItem: { 
     flexDirection: 'row', alignItems: 'center', 
