@@ -1,3 +1,5 @@
+[![Download APK](https://img.shields.io/badge/Download-APK-orange?style=for-the-badge&logo=android)](https://expo.dev/artifacts/eas/9f45TYYaAb8bGqGvCmqnH.apk)
+
 # 🎵 Lokal Music Player
 
 A beautiful, feature-rich music streaming app built with React Native and Expo, using the JioSaavn API.
