@@ -3,6 +3,7 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS, AVPlaybackStatus } from 'expo-av';
 import { usePlayerStore } from '../store/playerStore';
 import { useQueueStore } from '../store/queueStore';
+import { useMusicStore } from '../store/musicStore'; 
 import { Song } from '../types';
 import { saavnApi } from '../api/saavn';
 
@@ -10,19 +11,14 @@ let soundObject: Audio.Sound | null = null;
 
 const getStreamUrl = (song: Song): string | null => {
   if (!song) return null;
-  
   const sources = song.downloadUrl;
-  
   if (Array.isArray(sources) && sources.length > 0) {
     const best = sources.find((s: any) => s.quality === '320kbps') || 
                  sources.find((s: any) => s.quality === '160kbps') || 
                  sources[sources.length - 1];
-    
     return best?.url || best?.link || null;
   }
-  
   if (typeof sources === 'string') return sources;
-  
   return null;
 };
 
@@ -44,11 +40,9 @@ export const audioService = {
 
   onPlaybackStatusUpdate(status: AVPlaybackStatus): void {
     const { setProgress, setIsPlaying } = usePlayerStore.getState();
-    
     if (status.isLoaded) {
       setProgress(status.positionMillis, status.durationMillis || 0);
       setIsPlaying(status.isPlaying);
-      
       if (status.didJustFinish) {
         audioService.playNext();
       }
@@ -58,36 +52,35 @@ export const audioService = {
   },
 
   async loadAndPlay(song: Song): Promise<void> {
+    // SAFETY CHECK: Prevent playing Artists or Albums
+    if (song.type === 'artist' || song.type === 'album') {
+      console.warn('⚠️ Cannot play an Artist or Album directly. Use navigation.');
+      return; 
+    }
+
     const { setCurrentSong, setIsPlaying } = usePlayerStore.getState();
-    
+    const { recordPlay } = useMusicStore.getState();
+
     try {
-      console.log('Attempting to play:', song.name);
-      
       let fullSong = song;
       
+      // If no downloadUrl, fetch details
       if (!song.downloadUrl || !getStreamUrl(song)) {
-        console.log('Fetching full song details for:', song.id);
+        console.log('Fetching details for:', song.name);
         const details = await saavnApi.getSongById(song.id);
-        
         if (!details) {
-          console.error('Could not fetch details for:', song.name);
-          alert(`Cannot play "${song.name}". Failed to fetch song details.`);
+          // Silent fail to avoid crashing UI
+          console.warn('Could not fetch song details.');
           return;
         }
-        
         fullSong = details;
-        console.log('Full song details fetched');
       }
       
       const uri = getStreamUrl(fullSong);
-
       if (!uri) {
-        console.error('Cannot play:', song.name, '- No audio link found');
-        alert(`Cannot play "${song.name}". No audio link available.`);
+        console.warn('No audio link found for:', song.name);
         return; 
       }
-
-      console.log('Stream URL found');
 
       if (soundObject) {
         await soundObject.unloadAsync();
@@ -105,22 +98,17 @@ export const audioService = {
       soundObject = sound;
       setCurrentSong(fullSong);
       setIsPlaying(true);
+      recordPlay(fullSong); // Add to history/most played
       
-      console.log('Now playing:', song.name);
     } catch (error) {
       console.error('Playback Error:', error);
-      alert(`Failed to play "${song.name}". Please try again.`);
       setIsPlaying(false);
     }
   },
 
   async togglePlayPause(): Promise<void> {
     const { isPlaying, setIsPlaying } = usePlayerStore.getState();
-    
-    if (!soundObject) {
-      console.warn('No sound object available');
-      return;
-    }
+    if (!soundObject) return;
 
     try {
       if (isPlaying) {
@@ -131,49 +119,55 @@ export const audioService = {
         setIsPlaying(true);
       }
     } catch (error) {
-      console.error('Toggle Play/Pause Error:', error);
+      console.error('Toggle Error:', error);
     }
   },
 
   async playNext(): Promise<void> {
     const next = useQueueStore.getState().playNext();
-    
     if (next) {
       await this.loadAndPlay(next);
     } else {
-      if (soundObject) {
-        try {
-          await soundObject.stopAsync();
-        } catch (error) {
-          console.error('Stop Error:', error);
-        }
-      }
-      usePlayerStore.getState().setIsPlaying(false);
-      console.log('Queue finished');
+      this.stop();
     }
   },
 
   async playPrevious(): Promise<void> {
     const prev = useQueueStore.getState().playPrevious();
-    
     if (prev) {
       await this.loadAndPlay(prev);
-    } else {
-      console.log('No previous song available');
     }
   },
 
   async seek(position: number): Promise<void> {
-    if (!soundObject) {
-      console.warn('No sound object available');
-      return;
-    }
-
+    if (!soundObject) return;
     try {
       await soundObject.setPositionAsync(position);
     } catch (error) {
       console.error('Seek Error:', error);
     }
+  },
+
+  async skipForward() {
+    if (!soundObject) return;
+    try {
+      const status = await soundObject.getStatusAsync();
+      if (status.isLoaded) {
+        const newPos = status.positionMillis + 10000; 
+        await soundObject.setPositionAsync(Math.min(newPos, status.durationMillis || newPos));
+      }
+    } catch (e) {}
+  },
+
+  async skipBackward() {
+    if (!soundObject) return;
+    try {
+      const status = await soundObject.getStatusAsync();
+      if (status.isLoaded) {
+        const newPos = Math.max(0, status.positionMillis - 10000);
+        await soundObject.setPositionAsync(newPos);
+      }
+    } catch (e) {}
   },
 
   async stop(): Promise<void> {
@@ -182,45 +176,9 @@ export const audioService = {
         await soundObject.stopAsync();
         await soundObject.unloadAsync();
         soundObject = null;
-      } catch (error) {
-        console.error('Stop Error:', error);
-      }
+      } catch (e) {}
     }
-    
-    const { setIsPlaying } = usePlayerStore.getState();
-    setIsPlaying(false);
-  },
-
-  async getStatus(): Promise<AVPlaybackStatus | null> {
-    if (!soundObject) return null;
-    
-    try {
-      return await soundObject.getStatusAsync();
-    } catch (error) {
-      console.error('Get Status Error:', error);
-      return null;
-    }
-  },
-
-  async setVolume(volume: number): Promise<void> {
-    if (!soundObject) return;
-    
-    try {
-      const clampedVolume = Math.max(0, Math.min(1, volume));
-      await soundObject.setVolumeAsync(clampedVolume);
-    } catch (error) {
-      console.error('Set Volume Error:', error);
-    }
-  },
-
-  async setRate(rate: number): Promise<void> {
-    if (!soundObject) return;
-    
-    try {
-      const clampedRate = Math.max(0.5, Math.min(2, rate));
-      await soundObject.setRateAsync(clampedRate, true);
-    } catch (error) {
-      console.error('Set Rate Error:', error);
-    }
+    usePlayerStore.getState().setCurrentSong(null);
+    usePlayerStore.getState().setIsPlaying(false);
   },
 };

@@ -1,3 +1,5 @@
+// src/store/playerStore.ts
+
 import { create } from 'zustand';
 import { Song } from '../types';
 
@@ -6,12 +8,14 @@ interface PlayerState {
   isPlaying: boolean;
   position: number;
   duration: number;
+  isModalOpen: boolean;
   // FIXED: Added missing setters
   setCurrentSong: (song: Song | null) => void;
   setIsPlaying: (playing: boolean) => void;
   setPosition: (pos: number) => void;
   setDuration: (dur: number) => void;
   setProgress: (pos: number, dur: number) => void;
+  setModalOpen: (isOpen: boolean) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set) => ({
@@ -19,10 +23,12 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   isPlaying: false,
   position: 0,
   duration: 0,
+  isModalOpen: false,
   setCurrentSong: (song) => set({ currentSong: song }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   // FIXED: Implemented missing setters
   setPosition: (position) => set({ position }),
   setDuration: (duration) => set({ duration }),
   setProgress: (position, duration) => set({ position, duration }),
+  setModalOpen: (isOpen) => set({ isModalOpen: isOpen }),
 }));

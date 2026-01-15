@@ -1,161 +1,92 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Alert,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQueueStore } from '../store/queueStore';
-// Removed unused usePlayerStore import to fix linter warning
 import { audioService } from '../services/audioService';
-import { Song } from '../types';
+import { getImageUrl } from '../utils/imageHelper';
+import { decodeHtmlEntities } from '../utils/htmlDecode';
 
 export const QueueScreen = () => {
   const navigation = useNavigation();
   const { queue, currentIndex, removeFromQueue, clearQueue, setCurrentIndex } = useQueueStore();
-  
+
   const handleSongPress = async (index: number) => {
     setCurrentIndex(index);
     const song = queue[index];
-    if (song) {
-      await audioService.loadAndPlay(song);
-      navigation.goBack();
-    }
+    if (song) await audioService.loadAndPlay(song);
   };
 
-  const handleRemoveSong = (index: number) => {
-    Alert.alert('Remove Song', 'Remove this song from queue?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeFromQueue(index) },
-    ]);
-  };
-
-  const handleClearQueue = () => {
-    Alert.alert('Clear Queue', 'Remove all songs from queue?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear All', style: 'destructive', onPress: () => { clearQueue(); navigation.goBack(); } },
-    ]);
-  };
-
-  const renderQueueItem = ({ item, index }: { item: Song; index: number }) => {
-    // FIXED: Simplified image logic to avoid TypeScript errors
-    const imageUrl = item.image?.[2]?.link || item.image?.[0]?.link;
-    const isCurrentSong = index === currentIndex;
+  const renderItem = ({ item, index }: { item: any; index: number }) => {
+    const isCurrent = index === currentIndex;
+    const imageUrl = getImageUrl(item.image, 'low');
 
     return (
-      <TouchableOpacity
-        style={[styles.queueItem, isCurrentSong && styles.currentQueueItem]}
+      <TouchableOpacity 
+        style={[styles.item, isCurrent && styles.activeItem]}
         onPress={() => handleSongPress(index)}
-        activeOpacity={0.7}
       >
-        <View style={styles.queueItemLeft}>
-          <Text style={[styles.queueNumber, isCurrentSong && styles.currentText]}>
-            {index + 1}
+        <Text style={[styles.index, isCurrent && styles.activeText]}>{index + 1}</Text>
+        <Image source={{ uri: imageUrl }} style={styles.img} />
+        <View style={styles.info}>
+          <Text style={[styles.title, isCurrent && styles.activeText]} numberOfLines={1}>
+            {decodeHtmlEntities(item.name)}
           </Text>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.queueImage} />
-          ) : (
-            <View style={[styles.queueImage, { backgroundColor: '#333' }]} />
-          )}
-          <View style={styles.songInfo}>
-            <Text style={[styles.queueTitle, isCurrentSong && styles.currentText]} numberOfLines={1}>
-              {item.name || 'Unknown Song'}
-            </Text>
-            <Text style={styles.queueArtist} numberOfLines={1}>
-              {item.primaryArtists || 'Unknown Artist'}
-            </Text>
-          </View>
+          <Text style={styles.artist} numberOfLines={1}>
+            {decodeHtmlEntities(item.primaryArtists)}
+          </Text>
         </View>
-
-        <View style={styles.queueItemRight}>
-          {isCurrentSong && (
-            <Ionicons name="volume-high" size={20} color="#8A2BE2" style={styles.playingIcon} />
-          )}
-          <TouchableOpacity onPress={() => handleRemoveSong(index)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close-circle" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => removeFromQueue(index)} style={{padding: 8}}>
+          <Ionicons name="close-circle-outline" size={24} color="#999" />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#0f0c29', '#302b63', '#24243e']} style={styles.gradient}>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Queue</Text>
-            {queue.length > 0 && (
-              <TouchableOpacity onPress={handleClearQueue}>
-                <Text style={styles.clearButton}>Clear All</Text>
-              </TouchableOpacity>
-            )}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Playing Queue</Text>
+        <View style={{flexDirection:'row', alignItems:'center'}}>
+           <TouchableOpacity onPress={clearQueue} style={{marginRight: 16}}>
+             <Text style={{color:'#FF6B00', fontWeight:'bold'}}>Clear</Text>
+           </TouchableOpacity>
+           {/* CROSS BUTTON */}
+           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
+             <Ionicons name="close" size={28} color="#FFF" />
+           </TouchableOpacity>
+        </View>
+      </View>
+
+      <FlatList
+        data={queue}
+        renderItem={renderItem}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Queue is empty</Text>
           </View>
-
-          {queue.length > 0 && (
-            <View style={styles.queueInfoContainer}>
-              <Text style={styles.queueInfoText}>
-                {queue.length} {queue.length === 1 ? 'song' : 'songs'} in queue
-              </Text>
-            </View>
-          )}
-
-          {queue.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="musical-notes-outline" size={64} color="#666" />
-              <Text style={styles.emptyText}>Queue is empty</Text>
-              <Text style={styles.emptySubtext}>Play some songs to see them here</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={queue}
-              renderItem={renderQueueItem}
-              keyExtractor={(item, index) => `${item.id}-${index}`}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              initialScrollIndex={currentIndex > 0 && currentIndex < queue.length ? currentIndex : 0}
-              getItemLayout={(data, index) => ({ length: 80, offset: 80 * index, index })}
-            />
-          )}
-        </SafeAreaView>
-      </LinearGradient>
-    </View>
+        }
+      />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0c29' },
-  gradient: { flex: 1 },
-  safeArea: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
-  backButton: { width: 40, height: 40, justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', flex: 1, textAlign: 'center', marginLeft: -40 },
-  clearButton: { fontSize: 14, color: '#8A2BE2', fontWeight: '600' },
-  queueInfoContainer: { paddingHorizontal: 20, paddingBottom: 16 },
-  queueInfoText: { fontSize: 14, color: '#999' },
-  listContent: { paddingBottom: 100 },
-  queueItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 20, height: 80 },
-  currentQueueItem: { backgroundColor: 'rgba(138, 43, 226, 0.1)' },
-  queueItemLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  queueNumber: { fontSize: 16, color: '#666', width: 30, fontWeight: '600' },
-  currentText: { color: '#8A2BE2' },
-  queueImage: { width: 50, height: 50, borderRadius: 6, marginRight: 12 },
-  songInfo: { flex: 1 },
-  queueTitle: { fontSize: 15, fontWeight: '600', color: '#fff', marginBottom: 4 },
-  queueArtist: { fontSize: 13, color: '#999' },
-  queueItemRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  playingIcon: { marginRight: 4 },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 20, fontWeight: '600', color: '#fff', marginTop: 16 },
-  emptySubtext: { fontSize: 14, color: '#999', marginTop: 8 },
+  container: { flex: 1, backgroundColor: '#121212' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth:1, borderBottomColor:'#333' },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+  closeBtn: { padding: 4, backgroundColor:'rgba(255,255,255,0.1)', borderRadius: 20 },
+  item: { flexDirection: 'row', alignItems: 'center', padding: 12 },
+  activeItem: { backgroundColor: 'rgba(255, 107, 0, 0.15)' },
+  index: { color: '#666', width: 30, fontSize: 14, textAlign:'center' },
+  img: { width: 50, height: 50, borderRadius: 8, marginHorizontal: 12 },
+  info: { flex: 1 },
+  title: { fontSize: 16, color: '#fff', fontWeight: '500' },
+  activeText: { color: '#FF6B00', fontWeight: 'bold' },
+  artist: { fontSize: 13, color: '#999', marginTop: 2 },
+  emptyContainer: { alignItems: 'center', marginTop: 50 },
+  emptyText: { color: '#666', fontSize: 16 }
 });

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Image, StatusBar, Modal, ActivityIndicator, Dimensions, ScrollView, Alert
+  Image, StatusBar, Modal, ActivityIndicator, Dimensions, ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,9 +13,12 @@ import { useThemeStore } from '../store/themeStore';
 import { saavnApi } from '../api/saavn';
 import { usePlayerStore } from '../store/playerStore';
 import { useQueueStore } from '../store/queueStore';
+import { useMusicStore } from '../store/musicStore'; 
 import { audioService } from '../services/audioService';
 import { Song } from '../types';
 import { decodeHtmlEntities } from '../utils/htmlDecode';
+import { getImageUrl } from '../utils/imageHelper';
+import { SongOptionsModal } from '../components/SongOptionsModal';
 
 const CATEGORIES = ['Suggested', 'Songs', 'Artists', 'Albums', 'Folders'];
 const SORT_OPTIONS = ['Ascending', 'Descending', 'Artist', 'Album', 'Year', 'Date Added'];
@@ -23,15 +26,17 @@ const { width } = Dimensions.get('window');
 
 export const HomeScreen = () => {
   const navigation = useNavigation();
-  const [activeCategory, setActiveCategory] = useState('Songs');
+  const [activeCategory, setActiveCategory] = useState('Suggested');
   
-  // Data States
   const [songs, setSongs] = useState<Song[]>([]);
   const [artists, setArtists] = useState<any[]>([]);
   const [albums, setAlbums] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   
-  // UI States
   const [menuVisible, setMenuVisible] = useState(false);
   const [sortVisible, setSortVisible] = useState(false);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -41,86 +46,85 @@ export const HomeScreen = () => {
   const theme = mode === 'dark' ? Colors.dark : Colors.light;
   const { currentSong } = usePlayerStore();
   const { setQueue } = useQueueStore();
+  
+  const { getMostPlayed } = useMusicStore();
+  const mostPlayedSongs = getMostPlayed();
 
   useEffect(() => { 
-    console.log('HomeScreen mounted');
     loadAllData(); 
   }, []);
 
   const loadAllData = async () => {
-    console.log('Loading data...');
     setIsLoading(true);
+    setPage(1);
     try {
-      console.log('Fetching songs...');
-      const songData = await saavnApi.getTrending();
-      console.log('Songs loaded:', songData.length);
-      setSongs(songData);
+      const songData = await saavnApi.searchSongs('trending', 1, 20);
+      setSongs(songData || []);
+      setHasMore((songData || []).length > 0);
 
-      console.log('Fetching artists...');
       const artistData = await saavnApi.searchArtists('arijit singh');
-      console.log('Artists loaded:', artistData.length);
-      setArtists(artistData);
+      setArtists(artistData || []);
 
-      console.log('Fetching albums...');
       const albumData = await saavnApi.searchAlbums('bollywood');
-      console.log('Albums loaded:', albumData.length);
-      setAlbums(albumData);
-
+      setAlbums(albumData || []);
     } catch (e) { 
       console.error('Error:', e); 
     }
     setIsLoading(false);
-    console.log('Loading complete');
+  };
+
+  const loadMoreSongs = async () => {
+    if (isFetchingMore || !hasMore || activeCategory !== 'Songs') return;
+    
+    setIsFetchingMore(true);
+    try {
+      const nextPage = page + 1;
+      const newSongs = await saavnApi.searchSongs('trending', nextPage, 20);
+      
+      if (newSongs && newSongs.length > 0) {
+        setSongs(prev => [...prev, ...newSongs]);
+        setPage(nextPage);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading more:', error);
+    }
+    setIsFetchingMore(false);
   };
 
   const handlePlay = (song: Song) => {
-    console.log('Playing song:', song.name);
     setQueue(songs);
     audioService.loadAndPlay(song);
   };
 
   const openMenu = (song: Song) => {
-    console.log('Opening menu for:', song.name);
     setSelectedSong(song);
     setMenuVisible(true);
   };
 
-  const handleMenuAction = (action: string) => {
-    setMenuVisible(false);
-    if (!selectedSong) return;
-
-    switch (action) {
-      case 'Play Next':
-        Alert.alert('Success', 'Added to play next!');
-        break;
-      case 'Add to Playing Queue':
-        setQueue([...songs, selectedSong]);
-        Alert.alert('Success', 'Added to queue');
-        break;
-      case 'Go to Artist':
-        Alert.alert('Artist', selectedSong.primaryArtists);
-        break;
-      case 'Set as Ringtone':
-        Alert.alert('Ringtone', 'Setting ringtone...');
-        break;
-      default:
-        console.log('Action:', action);
-    }
+  const handleArtistClick = (artist: any) => {
+    (navigation as any).navigate('Details', {
+      type: 'artist',
+      id: artist.id,
+      title: artist.name,
+      data: artist
+    });
   };
 
-  // Get image URL - handles both 'link' and 'url' properties
-  const getImageUrl = (imageArray: any[]) => {
-    if (!imageArray || imageArray.length === 0) return '';
-    return imageArray[2]?.url || imageArray[2]?.link || 
-           imageArray[1]?.url || imageArray[1]?.link || 
-           imageArray[0]?.url || imageArray[0]?.link || '';
+  const handleAlbumClick = (album: any) => {
+    (navigation as any).navigate('Details', {
+      type: 'album',
+      id: album.id,
+      title: album.name,
+      data: album
+    });
   };
 
   // --- RENDERERS ---
 
   const renderHorizontalCard = ({ item }: { item: Song }) => {
-    const imageUrl = getImageUrl(item.image);
-    
+    const imageUrl = getImageUrl(item.image, 'medium');
     return (
       <TouchableOpacity 
         style={styles.horizCard} 
@@ -142,19 +146,16 @@ export const HomeScreen = () => {
   };
 
   const renderArtistCircle = ({ item }: { item: any }) => {
-    const imageUrl = typeof item.image === 'string' 
-      ? item.image 
-      : getImageUrl(item.image);
-    
+    const imageUrl = getImageUrl(item.image, 'medium');
     return (
       <TouchableOpacity 
         style={styles.artistCircleContainer}
         activeOpacity={0.7}
-        onPress={() => console.log('Artist clicked:', item.name)}
+        onPress={() => handleArtistClick(item)}
       >
         <Image 
           source={{ uri: imageUrl }} 
-          style={[styles.artistCircle, { backgroundColor: theme.card }]} 
+          style={[styles.artistCircle, { backgroundColor: theme.card, borderColor: theme.border }]} 
         />
         <Text style={[styles.artistName, { color: theme.textPrimary }]} numberOfLines={1}>
           {decodeHtmlEntities(item.name)}
@@ -165,7 +166,7 @@ export const HomeScreen = () => {
 
   const renderSongRow = ({ item }: { item: Song }) => {
     const isPlaying = currentSong?.id === item.id;
-    const imageUrl = getImageUrl(item.image);
+    const imageUrl = getImageUrl(item.image, 'medium');
     
     return (
       <TouchableOpacity 
@@ -179,10 +180,7 @@ export const HomeScreen = () => {
         />
         <View style={{ flex: 1, marginLeft: 15 }}>
           <Text 
-            style={[
-              styles.rowTitle, 
-              { color: isPlaying ? theme.primary : theme.textPrimary }
-            ]} 
+            style={[styles.rowTitle, { color: isPlaying ? theme.primary : theme.textPrimary }]} 
             numberOfLines={1}
           >
             {decodeHtmlEntities(item.name)}
@@ -199,7 +197,7 @@ export const HomeScreen = () => {
           style={[styles.playMini, { borderColor: theme.border }]}
           activeOpacity={0.7}
         >
-          <Ionicons name="play" size={12} color={theme.primary} />
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={12} color={theme.primary} />
         </TouchableOpacity>
         <TouchableOpacity 
           style={{ padding: 8 }} 
@@ -216,15 +214,12 @@ export const HomeScreen = () => {
   };
 
   const renderArtistRow = ({ item }: { item: any }) => {
-    const imageUrl = typeof item.image === 'string' 
-      ? item.image 
-      : getImageUrl(item.image);
-
+    const imageUrl = getImageUrl(item.image, 'medium');
     return (
       <TouchableOpacity 
         style={styles.rowItem}
         activeOpacity={0.7}
-        onPress={() => console.log('Artist row clicked:', item.name)}
+        onPress={() => handleArtistClick(item)}
       >
         <Image 
           source={{ uri: imageUrl }} 
@@ -244,33 +239,23 @@ export const HomeScreen = () => {
   };
 
   const renderAlbumGrid = ({ item }: { item: any }) => {
-    const cardWidth = (width - 48) / 2;
-    const imageUrl = getImageUrl(item.image);
-    
+    const cardWidth = (width - 48 - 15) / 2;
+    const imageUrl = getImageUrl(item.image, 'medium');
     return (
       <TouchableOpacity 
         style={[styles.albumCard, { width: cardWidth }]}
         activeOpacity={0.7}
-        onPress={() => console.log('Album clicked:', item.name)}
+        onPress={() => handleAlbumClick(item)}
       >
         <Image 
           source={{ uri: imageUrl }} 
-          style={[
-            styles.albumImg, 
-            { width: cardWidth, height: cardWidth, backgroundColor: theme.card }
-          ]} 
+          style={[styles.albumImg, { width: cardWidth, height: cardWidth, backgroundColor: theme.card }]} 
         />
         <View style={{ marginTop: 8 }}>
-          <Text 
-            style={[styles.rowTitle, { color: theme.textPrimary, fontSize: 14 }]} 
-            numberOfLines={1}
-          >
+          <Text style={[styles.rowTitle, { color: theme.textPrimary, fontSize: 14 }]} numberOfLines={1}>
             {decodeHtmlEntities(item.name)}
           </Text>
-          <Text 
-            style={[styles.rowSub, { color: theme.textSecondary, fontSize: 12 }]} 
-            numberOfLines={1}
-          >
+          <Text style={[styles.rowSub, { color: theme.textSecondary, fontSize: 12 }]} numberOfLines={1}>
             {item.year || '2023'}
           </Text>
         </View>
@@ -282,15 +267,12 @@ export const HomeScreen = () => {
   const renderContent = () => {
     if (activeCategory === 'Suggested') {
       return (
-        <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
+          {/* Recently Played */}
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              Recently Played
-            </Text>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={{ color: theme.primary, fontWeight: '600' }}>
-                See All
-              </Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Recently Played</Text>
+            <TouchableOpacity onPress={() => setActiveCategory('Songs')}>
+              <Text style={{ color: theme.primary, fontWeight: '600' }}>See All</Text>
             </TouchableOpacity>
           </View>
           <FlatList 
@@ -301,21 +283,35 @@ export const HomeScreen = () => {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: 20 }} 
           />
-          
+
+          {/* Most Played */}
+          {mostPlayedSongs.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Most Played</Text>
+              </View>
+              <FlatList 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                data={mostPlayedSongs} 
+                renderItem={renderHorizontalCard} 
+                keyExtractor={(item) => `most-${item.id}`}
+                contentContainerStyle={{ paddingHorizontal: 20 }} 
+              />
+            </>
+          )}
+
+          {/* Artists */}
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              Artists
-            </Text>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={{ color: theme.primary, fontWeight: '600' }}>
-                See All
-              </Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Artists</Text>
+            <TouchableOpacity onPress={() => setActiveCategory('Artists')}>
+              <Text style={{ color: theme.primary, fontWeight: '600' }}>See All</Text>
             </TouchableOpacity>
           </View>
           <FlatList 
             horizontal 
             showsHorizontalScrollIndicator={false} 
-            data={artists} 
+            data={artists.slice(0, 10)} 
             renderItem={renderArtistCircle} 
             keyExtractor={(item, index) => item.id || `artist-${index}`}
             contentContainerStyle={{ paddingHorizontal: 20 }} 
@@ -333,7 +329,7 @@ export const HomeScreen = () => {
           keyExtractor={(item, index) => item.id || `album-${index}`}
           numColumns={2} 
           columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 24 }} 
-          contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }} 
+          contentContainerStyle={{ paddingBottom: 160, paddingTop: 10 }} 
         />
       );
     }
@@ -345,7 +341,7 @@ export const HomeScreen = () => {
           data={artists} 
           renderItem={renderArtistRow} 
           keyExtractor={(item, index) => item.id || `artist-${index}`}
-          contentContainerStyle={{ paddingBottom: 100, paddingTop: 10 }} 
+          contentContainerStyle={{ paddingBottom: 160, paddingTop: 10 }} 
         />
       );
     }
@@ -356,14 +352,25 @@ export const HomeScreen = () => {
         key="SongsList"
         data={songs} 
         renderItem={renderSongRow} 
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
         contentContainerStyle={{ paddingBottom: 160 }}
+        onEndReached={loadMoreSongs}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isFetchingMore ? <ActivityIndicator color={theme.primary} style={{ margin: 20 }} /> : null
+        }
         ListHeaderComponent={
           <View style={styles.songHeaderContainer}>
             <TouchableOpacity 
               style={[styles.bigShuffleBtn, { backgroundColor: theme.primary }]}
               activeOpacity={0.7}
-              onPress={() => console.log('Shuffle clicked')}
+              onPress={() => {
+                if (songs.length > 0) {
+                  const shuffled = [...songs].sort(() => Math.random() - 0.5);
+                  setQueue(shuffled);
+                  handlePlay(shuffled[0]);
+                }
+              }}
             >
               <Ionicons name="shuffle" size={20} color="#FFF" />
               <Text style={styles.bigBtnTextWhite}>Shuffle</Text>
@@ -374,9 +381,7 @@ export const HomeScreen = () => {
               onPress={() => songs.length > 0 && handlePlay(songs[0])}
             >
               <Ionicons name="play-circle" size={20} color={theme.primary} />
-              <Text style={[styles.bigBtnTextColor, { color: theme.primary }]}>
-                Play
-              </Text>
+              <Text style={[styles.bigBtnTextColor, { color: theme.primary }]}>Play</Text>
             </TouchableOpacity>
           </View>
         }
@@ -401,9 +406,7 @@ export const HomeScreen = () => {
       <View style={styles.header}>
         <View style={{flexDirection:'row', alignItems:'center'}}>
           <Ionicons name="musical-notes" size={28} color={theme.primary} />
-          <Text style={[styles.appTitle, { color: theme.textPrimary }]}>
-            {' '}Lokal Music
-          </Text>
+          <Text style={[styles.appTitle, { color: theme.textPrimary }]}> Lokal Music</Text>
         </View>
         <TouchableOpacity 
           onPress={() => navigation.navigate('Search' as never)}
@@ -429,20 +432,14 @@ export const HomeScreen = () => {
                 style={styles.tab}
                 activeOpacity={0.7}
               >
-                <Text 
-                  style={[
-                    styles.tabText, 
-                    { 
-                      color: isActive ? theme.primary : theme.textSecondary, 
-                      fontWeight: isActive ? '700' : '500' 
-                    }
-                  ]}
+                <Text style={[styles.tabText, { 
+                    color: isActive ? theme.primary : theme.textSecondary, 
+                    fontWeight: isActive ? '700' : '500' 
+                  }]}
                 >
                   {item}
                 </Text>
-                {isActive && (
-                  <View style={[styles.activeLine, { backgroundColor: theme.primary }]} />
-                )}
+                {isActive && <View style={[styles.activeLine, { backgroundColor: theme.primary }]} />}
               </TouchableOpacity>
             );
           }}
@@ -494,25 +491,12 @@ export const HomeScreen = () => {
                   <TouchableOpacity 
                     key={opt} 
                     style={styles.sortOption} 
-                    onPress={() => {
-                      setSortOption(opt); 
-                      setSortVisible(false);
-                    }}
+                    onPress={() => { setSortOption(opt); setSortVisible(false); }}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.sortText, { color: theme.textPrimary }]}>
-                      {opt}
-                    </Text>
-                    <View 
-                      style={[
-                        styles.radio, 
-                        { borderColor: theme.primary }, 
-                        isSelected && styles.radioActive
-                      ]}
-                    >
-                      {isSelected && (
-                        <View style={[styles.radioInner, { backgroundColor: theme.primary }]} />
-                      )}
+                    <Text style={[styles.sortText, { color: theme.textPrimary }]}>{opt}</Text>
+                    <View style={[styles.radio, { borderColor: theme.primary }, isSelected && styles.radioActive]}>
+                      {isSelected && <View style={[styles.radioInner, { backgroundColor: theme.primary }]} />}
                     </View>
                   </TouchableOpacity>
                 );
@@ -522,73 +506,12 @@ export const HomeScreen = () => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Action Sheet */}
-      <Modal 
-        visible={menuVisible} 
-        transparent 
-        animationType="slide" 
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalBackdrop} 
-          activeOpacity={1} 
-          onPress={() => setMenuVisible(false)}
-        >
-          <TouchableOpacity activeOpacity={1}>
-            <View style={[styles.actionSheet, { backgroundColor: theme.card }]}>
-              <View style={styles.handleBar} />
-              {selectedSong && (
-                <View style={[styles.actionHeader, { borderBottomColor: theme.border }]}>
-                  <Image 
-                    source={{ uri: getImageUrl(selectedSong.image) }} 
-                    style={styles.actionImg} 
-                  />
-                  <View style={{flex:1, marginLeft:15}}>
-                    <Text 
-                      style={[styles.actionTitle, { color: theme.textPrimary }]} 
-                      numberOfLines={1}
-                    >
-                      {decodeHtmlEntities(selectedSong.name)}
-                    </Text>
-                    <Text style={[styles.actionSub, { color: theme.textSecondary }]}>
-                      {decodeHtmlEntities(selectedSong.primaryArtists)}
-                    </Text>
-                  </View>
-                  <TouchableOpacity activeOpacity={0.7}>
-                    <Ionicons name="heart-outline" size={24} color={theme.textPrimary} />
-                  </TouchableOpacity>
-                </View>
-              )}
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {[
-                  {l: 'Play Next', i: 'arrow-forward-circle-outline'},
-                  {l: 'Add to Playing Queue', i: 'list-circle-outline'},
-                  {l: 'Add to Playlist', i: 'add-circle-outline'},
-                  {l: 'Go to Album', i: 'disc-outline'},
-                  {l: 'Go to Artist', i: 'person-outline'},
-                  {l: 'Details', i: 'information-circle-outline'},
-                  {l: 'Set as Ringtone', i: 'call-outline'},
-                  {l: 'Add to Blacklist', i: 'close-circle-outline'},
-                  {l: 'Share', i: 'share-social-outline'},
-                  {l: 'Delete from Device', i: 'trash-outline'},
-                ].map((a) => (
-                  <TouchableOpacity 
-                    key={a.l} 
-                    style={styles.actionItem} 
-                    onPress={() => handleMenuAction(a.l)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name={a.i as any} size={22} color={theme.textPrimary} />
-                    <Text style={[styles.actionText, { color: theme.textPrimary }]}>
-                      {a.l}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+      {/* Song Options Modal */}
+      <SongOptionsModal 
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        song={selectedSong}
+      />
     </SafeAreaView>
   );
 };
@@ -596,11 +519,8 @@ export const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 24, 
-    paddingVertical: 15, 
-    alignItems: 'center' 
+    flexDirection: 'row', justifyContent: 'space-between', 
+    paddingHorizontal: 24, paddingVertical: 15, alignItems: 'center' 
   },
   appTitle: { fontSize: 24, fontWeight: '700', marginLeft: 8 },
   tabsContainer: { paddingBottom: 10 },
@@ -608,12 +528,8 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 16 },
   activeLine: { width: 25, height: 3, borderRadius: 2, marginTop: 4 },
   sectionHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 24, 
-    marginBottom: 15, 
-    marginTop: 15, 
-    alignItems: 'center' 
+    flexDirection: 'row', justifyContent: 'space-between', 
+    paddingHorizontal: 24, marginBottom: 15, marginTop: 15, alignItems: 'center' 
   },
   sectionTitle: { fontSize: 18, fontWeight: '700' },
   horizCard: { width: 140, marginRight: 15 },
@@ -621,119 +537,58 @@ const styles = StyleSheet.create({
   horizTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
   horizSub: { fontSize: 12 },
   artistCircleContainer: { alignItems: 'center', marginRight: 20 },
-  artistCircle: { width: 80, height: 80, borderRadius: 40, marginBottom: 8 },
+  artistCircle: { width: 80, height: 80, borderRadius: 40, marginBottom: 8, borderWidth: 1 },
   artistName: { fontSize: 13, fontWeight: '500' },
   
   songHeaderContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 24, 
-    paddingVertical: 15 
+    flexDirection: 'row', justifyContent: 'space-between', 
+    paddingHorizontal: 24, paddingVertical: 15 
   },
   bigShuffleBtn: { 
-    flex: 1, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingVertical: 14, 
-    borderRadius: 30, 
-    marginRight: 10, 
-    shadowColor: '#FF6B00', 
-    shadowOpacity: 0.3, 
-    shadowRadius: 10, 
-    elevation: 5 
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
+    paddingVertical: 14, borderRadius: 30, marginRight: 10, 
+    shadowColor: '#FF6B00', shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 
   },
   bigPlayBtn: { 
-    flex: 1, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingVertical: 14, 
-    borderRadius: 30, 
-    marginLeft: 10 
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
+    paddingVertical: 14, borderRadius: 30, marginLeft: 10 
   },
   bigBtnTextWhite: { color: '#FFF', fontWeight: '700', fontSize: 16, marginLeft: 8 },
   bigBtnTextColor: { fontWeight: '700', fontSize: 16, marginLeft: 8 },
 
   rowItem: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 24, 
-    marginBottom: 20 
+    flexDirection: 'row', alignItems: 'center', 
+    paddingHorizontal: 24, marginBottom: 20 
   },
   rowImg: { width: 50, height: 50, borderRadius: 10 },
   artistRowImg: { width: 56, height: 56, borderRadius: 28 }, 
   rowTitle: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
   rowSub: { fontSize: 12 },
   playMini: { 
-    width: 28, 
-    height: 28, 
-    borderRadius: 14, 
-    borderWidth:1, 
-    justifyContent:'center', 
-    alignItems:'center', 
-    marginRight:10 
+    width: 28, height: 28, borderRadius: 14, borderWidth:1, 
+    justifyContent:'center', alignItems:'center', marginRight:10 
   },
   
   albumCard: { marginBottom: 20 },
   albumImg: { borderRadius: 16, marginBottom: 8 },
   sortRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 24, 
-    paddingVertical: 10, 
-    alignItems: 'center' 
+    flexDirection: 'row', justifyContent: 'space-between', 
+    paddingHorizontal: 24, paddingVertical: 10, alignItems: 'center' 
   },
   countText: { fontSize: 16, fontWeight: '700' },
   
   modalBackdrop: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    justifyContent: 'flex-end' 
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' 
   },
   sortSheet: { padding: 20, margin: 20, borderRadius: 16, elevation: 5 },
   sortOption: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    paddingVertical: 12 
+    flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 
   },
   sortText: { fontSize: 16, fontWeight: '500' },
   radio: { 
-    width: 20, 
-    height: 20, 
-    borderRadius: 10, 
-    borderWidth: 2, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+    width: 20, height: 20, borderRadius: 10, borderWidth: 2, 
+    justifyContent: 'center', alignItems: 'center' 
   },
   radioActive: {},
   radioInner: { width: 10, height: 10, borderRadius: 5 },
-  
-  actionSheet: { 
-    borderTopLeftRadius: 30, 
-    borderTopRightRadius: 30, 
-    padding: 24, 
-    paddingBottom: 40, 
-    maxHeight: '75%' 
-  },
-  handleBar: { 
-    width: 40, 
-    height: 4, 
-    backgroundColor: '#E0E0E0', 
-    borderRadius: 2, 
-    alignSelf: 'center', 
-    marginBottom: 20 
-  },
-  actionHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 15, 
-    paddingBottom: 15, 
-    borderBottomWidth: 1 
-  },
-  actionImg: { width: 50, height: 50, borderRadius: 8 },
-  actionTitle: { fontSize: 16, fontWeight: 'bold' },
-  actionSub: { fontSize: 13 },
-  actionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
-  actionText: { fontSize: 16, marginLeft: 15, fontWeight: '500' },
 });

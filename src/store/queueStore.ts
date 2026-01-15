@@ -1,3 +1,5 @@
+// src/store/queueStore.ts
+
 import { create } from 'zustand';
 import { Song } from '../types';
 
@@ -10,6 +12,8 @@ interface QueueStore {
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   setCurrentIndex: (index: number) => void;
+  addToQueue: (song: Song) => void;  // NEW
+  addNext: (song: Song) => void;      // NEW
 }
 
 export const useQueueStore = create<QueueStore>((set, get) => ({
@@ -41,7 +45,6 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     newQueue.splice(index, 1);
     let newIndex = currentIndex;
     if (index < currentIndex) newIndex = currentIndex - 1;
-    // Reset if empty or ensure index is valid
     if (newQueue.length === 0) newIndex = -1;
     else if (newIndex >= newQueue.length) newIndex = newQueue.length - 1;
     
@@ -51,4 +54,18 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   clearQueue: () => set({ queue: [], currentIndex: -1 }),
 
   setCurrentIndex: (index) => set({ currentIndex: index }),
+
+  // NEW: Add song to end of queue
+  addToQueue: (song) => {
+    const { queue } = get();
+    set({ queue: [...queue, song] });
+  },
+
+  // NEW: Add song right after current song (Play Next)
+  addNext: (song) => {
+    const { queue, currentIndex } = get();
+    const newQueue = [...queue];
+    newQueue.splice(currentIndex + 1, 0, song);
+    set({ queue: newQueue });
+  },
 }));

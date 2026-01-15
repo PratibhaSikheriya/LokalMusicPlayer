@@ -1,5 +1,3 @@
-// src/utils/htmlDecode.ts
-
 export const decodeHtmlEntities = (text: string): string => {
   if (!text) return '';
   

@@ -3,16 +3,14 @@
 const BASE_URL = 'https://saavn.sumit.co/api';
 
 export const saavnApi = {
-  searchSongs: async (query: string) => {
+  searchSongs: async (query: string, page = 1, limit = 20) => {
     try {
-      console.log('🔍 Searching songs:', query);
+      console.log(`🔍 Searching: ${query} (Page: ${page})`);
       const response = await fetch(
-        `${BASE_URL}/search/songs?query=${encodeURIComponent(query)}`
+        `${BASE_URL}/search/songs?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`
       );
       const json = await response.json();
-      console.log('📦 Response:', json.data?.results?.length || 0, 'songs');
       
-      // Fixed: Check for json.success instead of json.status
       if (json.success && json.data?.results) {
         return json.data.results;
       }
@@ -23,17 +21,28 @@ export const saavnApi = {
     }
   },
 
-  getSongById: async (id: string) => {
+ getSongById: async (id: string) => {
     try {
       const response = await fetch(`${BASE_URL}/songs/${id}`);
       const json = await response.json();
-      
-      if (json.success && json.data?.[0]) {
-        return json.data[0];
-      }
+      if (json.success && json.data?.[0]) return json.data[0];
       return null;
     } catch (error) {
       console.error('Get song error:', error);
+      return null;
+    }
+  },
+  // NEW: Fetch Lyrics
+  getLyrics: async (id: string) => {
+    try {
+      const response = await fetch(`${BASE_URL}/songs/${id}/lyrics`);
+      const json = await response.json();
+      if (json.success && json.data?.lyrics) {
+        return json.data.lyrics;
+      }
+      return null;
+    } catch (error) {
+      console.error('Get lyrics error:', error);
       return null;
     }
   },
@@ -114,8 +123,8 @@ export const saavnApi = {
   },
 
   getTrending: async () => {
-    console.log('🔥 Fetching trending...');
-    return saavnApi.searchSongs('arijit singh');
+    // FIXED: Uses the new pagination signature
+    return saavnApi.searchSongs('trending', 1, 20);
   },
 
   getSongsByLanguage: async (language: string) => {

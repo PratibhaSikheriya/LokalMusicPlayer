@@ -1,64 +1,93 @@
-// src/store/musicStore.ts
-
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Song } from '../types';
 
-type SortOption = 'Ascending' | 'Descending' | 'Artist' | 'Album' | 'Year' | 'Date Added';
-
-interface MusicStore {
-  favorites: Song[];
-  sortOption: SortOption;
-  toggleFavorite: (song: Song) => void;
-  isFavorite: (id: string) => boolean;
-  setSortOption: (option: SortOption) => void;
-  sortSongs: (songs: Song[]) => Song[];
+export interface Playlist {
+  id: string;
+  name: string;
+  songs: Song[];
+  createdAt: number;
 }
 
-export const useMusicStore = create<MusicStore>((set, get) => ({
-  favorites: [],
-  sortOption: 'Ascending',
+interface MusicState {
+  favorites: Song[];
+  playlists: Playlist[];
+  history: Song[];
+  playCounts: Record<string, number>; // Track number of plays per song
   
-  toggleFavorite: (song) => {
-    const { favorites } = get();
-    const exists = favorites.find((s) => s.id === song.id);
-    if (exists) {
-      set({ favorites: favorites.filter((s) => s.id !== song.id) });
-    } else {
-      set({ favorites: [...favorites, song] });
-    }
-  },
+  toggleFavorite: (song: Song) => void;
+  isFavorite: (songId: string) => boolean;
   
-  isFavorite: (id) => !!get().favorites.find((s) => s.id === id),
+  createPlaylist: (name: string) => void;
+  addToPlaylist: (playlistId: string, song: Song) => void;
   
-  setSortOption: (option) => set({ sortOption: option }),
-  
-  sortSongs: (songs) => {
-    const { sortOption } = get();
-    const sorted = [...songs];
-    
-    switch (sortOption) {
-      case 'Ascending':
-        return sorted.sort((a, b) => a.name.localeCompare(b.name));
-      case 'Descending':
-        return sorted.sort((a, b) => b.name.localeCompare(a.name));
-      case 'Artist':
-        return sorted.sort((a, b) => a.primaryArtists.localeCompare(b.primaryArtists));
-      case 'Album':
-        return sorted.sort((a, b) => {
-          const albumA = a.album?.name || '';
-          const albumB = b.album?.name || '';
-          return albumA.localeCompare(albumB);
+  recordPlay: (song: Song) => void; // Call this when a song plays
+  getMostPlayed: () => Song[];
+}
+
+export const useMusicStore = create<MusicState>()(
+  persist(
+    (set, get) => ({
+      favorites: [],
+      playlists: [],
+      history: [],
+      playCounts: {},
+
+      toggleFavorite: (song) => {
+        const { favorites } = get();
+        const exists = favorites.some((s) => s.id === song.id);
+        if (exists) {
+          set({ favorites: favorites.filter((s) => s.id !== song.id) });
+        } else {
+          set({ favorites: [song, ...favorites] });
+        }
+      },
+
+      isFavorite: (songId) => get().favorites.some((s) => s.id === songId),
+
+      createPlaylist: (name) => {
+        const newPlaylist: Playlist = {
+          id: Date.now().toString(),
+          name,
+          songs: [],
+          createdAt: Date.now(),
+        };
+        set((state) => ({ playlists: [newPlaylist, ...state.playlists] }));
+      },
+
+      addToPlaylist: (playlistId, song) => {
+        set((state) => ({
+          playlists: state.playlists.map((pl) => {
+            if (pl.id === playlistId) {
+              // Prevent duplicates
+              if (pl.songs.some(s => s.id === song.id)) return pl;
+              return { ...pl, songs: [...pl.songs, song] };
+            }
+            return pl;
+          }),
+        }));
+      },
+
+      recordPlay: (song) => {
+        set((state) => {
+          // Add to history (keep max 50)
+          const newHistory = [song, ...state.history.filter((s) => s.id !== song.id)].slice(0, 50);
+          // Increment play count
+          const newCounts = { ...state.playCounts, [song.id]: (state.playCounts[song.id] || 0) + 1 };
+          return { history: newHistory, playCounts: newCounts };
         });
-      case 'Year':
-        return sorted.sort((a, b) => {
-          const yearA = parseInt(a.year || '0');
-          const yearB = parseInt(b.year || '0');
-          return yearB - yearA;
-        });
-      case 'Date Added':
-        return sorted;
-      default:
-        return sorted;
+      },
+
+      getMostPlayed: () => {
+        const { playCounts, history } = get();
+        // Sort history based on play counts descending
+        return [...history].sort((a, b) => (playCounts[b.id] || 0) - (playCounts[a.id] || 0)).slice(0, 10);
+      },
+    }),
+    {
+      name: 'music-storage',
+      storage: createJSONStorage(() => AsyncStorage),
     }
-  },
-}));
+  )
+);
