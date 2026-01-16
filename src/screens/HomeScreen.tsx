@@ -57,14 +57,17 @@ export const HomeScreen = () => {
     setIsLoading(true);
     setPage(1);
     try {
+      // 1. Fetch Trending Songs
       const songData = await saavnApi.searchSongs('trending', 1, 20);
       setSongs(songData || []);
       setHasMore((songData || []).length > 0);
 
-      const artistData = await saavnApi.searchArtists('arijit singh');
+      // 2. UPDATED: Fetch Generic Top Artists instead of specific one
+      const artistData = await saavnApi.searchArtists('top artists'); 
       setArtists(artistData || []);
 
-      const albumData = await saavnApi.searchAlbums('bollywood');
+      // 3. Fetch Generic Albums
+      const albumData = await saavnApi.searchAlbums('new releases');
       setAlbums(albumData || []);
     } catch (e) { 
       console.error('Error:', e); 

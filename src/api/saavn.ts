@@ -1,9 +1,7 @@
-// src/api/saavn.ts
-
 const BASE_URL = 'https://saavn.sumit.co/api';
 
 export const saavnApi = {
-  searchSongs: async (query: string, page = 1, limit = 20) => {
+  searchSongs: async (query: string, page = 1, limit = 50) => {
     try {
       console.log(`🔍 Searching: ${query} (Page: ${page})`);
       const response = await fetch(
@@ -21,7 +19,7 @@ export const saavnApi = {
     }
   },
 
- getSongById: async (id: string) => {
+  getSongById: async (id: string) => {
     try {
       const response = await fetch(`${BASE_URL}/songs/${id}`);
       const json = await response.json();
@@ -32,7 +30,7 @@ export const saavnApi = {
       return null;
     }
   },
-  // NEW: Fetch Lyrics
+
   getLyrics: async (id: string) => {
     try {
       const response = await fetch(`${BASE_URL}/songs/${id}/lyrics`);
@@ -51,10 +49,7 @@ export const saavnApi = {
     try {
       const response = await fetch(`${BASE_URL}/songs/${id}/suggestions`);
       const json = await response.json();
-      
-      if (json.success && json.data) {
-        return json.data;
-      }
+      if (json.success && json.data) return json.data;
       return [];
     } catch (error) {
       console.error('Get suggestions error:', error);
@@ -64,17 +59,11 @@ export const saavnApi = {
 
   searchAlbums: async (query: string) => {
     try {
-      console.log('🔍 Searching albums:', query);
       const response = await fetch(
         `${BASE_URL}/search/albums?query=${encodeURIComponent(query)}`
       );
       const json = await response.json();
-      console.log('📦 Albums:', json.data?.results?.length || 0);
-      
-      // Fixed: Check for json.success instead of json.status
-      return json.success && json.data?.results 
-        ? json.data.results 
-        : [];
+      return json.success && json.data?.results ? json.data.results : [];
     } catch (error) {
       console.error('❌ Search albums error:', error);
       return [];
@@ -83,17 +72,11 @@ export const saavnApi = {
 
   searchArtists: async (query: string) => {
     try {
-      console.log('🔍 Searching artists:', query);
       const response = await fetch(
         `${BASE_URL}/search/artists?query=${encodeURIComponent(query)}`
       );
       const json = await response.json();
-      console.log('📦 Artists:', json.data?.results?.length || 0);
-      
-      // Fixed: Check for json.success instead of json.status
-      return json.success && json.data?.results 
-        ? json.data.results 
-        : [];
+      return json.success && json.data?.results ? json.data.results : [];
     } catch (error) {
       console.error('❌ Search artists error:', error);
       return [];
@@ -111,11 +94,14 @@ export const saavnApi = {
     }
   },
 
-  getArtistSongs: async (id: string) => {
+  // FIXED: Now properly fetches songs for the artist
+  getArtistSongs: async (id: string, page = 1) => {
     try {
-      const response = await fetch(`${BASE_URL}/artists/${id}/songs`);
+      // Sometimes we need to search by artist name to get song list
+      const response = await fetch(`${BASE_URL}/artists/${id}/songs?page=${page}`);
       const json = await response.json();
-      return json.success && json.data ? json.data : [];
+      if(json.success && json.data?.songs) return json.data.songs;
+      return [];
     } catch (error) {
       console.error('Get artist songs error:', error);
       return [];
@@ -123,8 +109,7 @@ export const saavnApi = {
   },
 
   getTrending: async () => {
-    // FIXED: Uses the new pagination signature
-    return saavnApi.searchSongs('trending', 1, 20);
+    return saavnApi.searchSongs('trending', 1, 50);
   },
 
   getSongsByLanguage: async (language: string) => {

@@ -14,7 +14,7 @@ interface MusicState {
   favorites: Song[];
   playlists: Playlist[];
   history: Song[];
-  playCounts: Record<string, number>; // Track number of plays per song
+  playCounts: Record<string, number>;
   
   toggleFavorite: (song: Song) => void;
   isFavorite: (songId: string) => boolean;
@@ -22,7 +22,7 @@ interface MusicState {
   createPlaylist: (name: string) => void;
   addToPlaylist: (playlistId: string, song: Song) => void;
   
-  recordPlay: (song: Song) => void; // Call this when a song plays
+  recordPlay: (song: Song) => void; 
   getMostPlayed: () => Song[];
 }
 
@@ -56,24 +56,27 @@ export const useMusicStore = create<MusicState>()(
         set((state) => ({ playlists: [newPlaylist, ...state.playlists] }));
       },
 
+      // ... imports same as before ...
       addToPlaylist: (playlistId, song) => {
-        set((state) => ({
-          playlists: state.playlists.map((pl) => {
-            if (pl.id === playlistId) {
-              // Prevent duplicates
-              if (pl.songs.some(s => s.id === song.id)) return pl;
-              return { ...pl, songs: [...pl.songs, song] };
-            }
-            return pl;
-          }),
-        }));
+        set((state) => {
+          // Flattened logic to fix nesting warning
+          const updatedPlaylists = state.playlists.map((pl) => {
+            if (pl.id !== playlistId) return pl;
+            
+            const isDuplicate = pl.songs.some(s => s.id === song.id);
+            if (isDuplicate) return pl;
+
+            return { ...pl, songs: [...pl.songs, song] };
+          });
+          
+          return { playlists: updatedPlaylists };
+        });
       },
+// ... rest of store same as before ...
 
       recordPlay: (song) => {
         set((state) => {
-          // Add to history (keep max 50)
           const newHistory = [song, ...state.history.filter((s) => s.id !== song.id)].slice(0, 50);
-          // Increment play count
           const newCounts = { ...state.playCounts, [song.id]: (state.playCounts[song.id] || 0) + 1 };
           return { history: newHistory, playCounts: newCounts };
         });
@@ -81,7 +84,6 @@ export const useMusicStore = create<MusicState>()(
 
       getMostPlayed: () => {
         const { playCounts, history } = get();
-        // Sort history based on play counts descending
         return [...history].sort((a, b) => (playCounts[b.id] || 0) - (playCounts[a.id] || 0)).slice(0, 10);
       },
     }),

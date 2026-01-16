@@ -1,3 +1,4 @@
+// src/screens/PlayerScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
@@ -16,6 +17,7 @@ import { saavnApi } from '../api/saavn';
 import { Colors } from '../constants/colors';
 import { decodeHtmlEntities } from '../utils/htmlDecode';
 import { SongOptionsModal } from '../components/SongOptionsModal';
+import { downloadService } from '../services/downloadService'; // Added Import
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +35,7 @@ export const PlayerScreen = () => {
   const [lyricsText, setLyricsText] = useState('');
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [optionsVisible, setOptionsVisible] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); // New state for download
 
   useEffect(() => {
     if (currentSong && lyricsVisible) fetchLyrics();
@@ -69,6 +72,14 @@ export const PlayerScreen = () => {
 
   const handleRepeat = () => {
     Alert.alert('Repeat', 'Repeat mode toggled');
+  };
+
+  // New Download Handler
+  const handleDownload = async () => {
+    if (!currentSong) return;
+    setIsDownloading(true);
+    await downloadService.downloadSong(currentSong);
+    setIsDownloading(false);
   };
 
   if (!currentSong) return null;
@@ -130,7 +141,7 @@ export const PlayerScreen = () => {
             <Ionicons name="play-skip-back" size={32} color={theme.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.playButton, { backgroundColor: theme.primary }]} onPress={() => audioService.togglePlayPause()}>
-            <Ionicons name={isPlaying ? "pause" : "play"} size={36} color="#FFF" style={!isPlaying ? {marginLeft: 4} : {}} />
+            <Ionicons name={isPlaying ? "pause" : "play"} size={36} color="#FFF" style={isPlaying ? undefined : {marginLeft: 4}} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => audioService.playNext()}>
             <Ionicons name="play-skip-forward" size={32} color={theme.textPrimary} />
@@ -158,7 +169,16 @@ export const PlayerScreen = () => {
         <View style={styles.bottomIcons}>
           <TouchableOpacity style={styles.iconBtn}><Ionicons name="timer-outline" size={24} color={theme.textSecondary} /></TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}><Ionicons name="moon-outline" size={24} color={theme.textSecondary} /></TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}><MaterialCommunityIcons name="cast" size={24} color={theme.textSecondary} /></TouchableOpacity>
+          
+          {/* New Download Button */}
+          <TouchableOpacity style={styles.iconBtn} onPress={handleDownload} disabled={isDownloading}>
+             {isDownloading ? (
+                <ActivityIndicator size="small" color={theme.textSecondary} />
+             ) : (
+                <MaterialCommunityIcons name="download" size={24} color={theme.textSecondary} />
+             )}
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.iconBtn} onPress={() => setOptionsVisible(true)}><Ionicons name="ellipsis-horizontal-circle-outline" size={24} color={theme.textSecondary} /></TouchableOpacity>
         </View>
       </ScrollView>

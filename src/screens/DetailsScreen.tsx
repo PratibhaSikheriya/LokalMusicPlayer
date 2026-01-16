@@ -1,5 +1,3 @@
-// src/screens/DetailsScreen.tsx
-
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +14,7 @@ import { decodeHtmlEntities } from '../utils/htmlDecode';
 export const DetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
-  const { type, id, data, title } = route.params; // type: 'artist' | 'album' | 'playlist'
+  const { type, id, data, title } = route.params; 
   const { mode } = useThemeStore();
   const theme = mode === 'dark' ? Colors.dark : Colors.light;
   const { setQueue } = useQueueStore();
@@ -33,19 +31,21 @@ export const DetailsScreen = () => {
     setLoading(true);
     try {
       if (type === 'artist') {
-        // Fetch Artist Songs
+        // FIXED: Fetch real songs
         const songs = await saavnApi.getArtistSongs(id);
-        setItems(songs);
+        setItems(songs || []);
+        
         if (!headerInfo) {
           const artistDetails = await saavnApi.getArtistById(id);
           setHeaderInfo(artistDetails);
         }
       } else if (type === 'album') {
-        // Albums usually come with songs in the initial search or need a specific call
-        // For this demo, we might need a specific getAlbumDetails API, 
-        // fallback to song search if not available
+        // Fallback for albums
         const songs = await saavnApi.searchSongs(headerInfo?.name || title); 
-        setItems(songs);
+        setItems(songs || []);
+      } else if (type === 'playlist') {
+        // If passed from local library
+        setItems(data || []);
       }
     } catch (e) {
       console.error(e);
@@ -59,10 +59,7 @@ export const DetailsScreen = () => {
   };
 
   const renderItem = ({ item, index }: { item: any, index: number }) => (
-    <TouchableOpacity 
-      style={styles.songRow} 
-      onPress={() => handlePlay(item)}
-    >
+    <TouchableOpacity style={styles.songRow} onPress={() => handlePlay(item)}>
       <Text style={[styles.index, { color: theme.textSecondary }]}>{index + 1}</Text>
       <View style={{ flex: 1 }}>
         <Text style={[styles.songTitle, { color: theme.textPrimary }]} numberOfLines={1}>
@@ -91,13 +88,13 @@ export const DetailsScreen = () => {
 
       <FlatList
         data={items}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item.id || index.toString()}
         renderItem={renderItem}
         ListHeaderComponent={
           <View style={styles.hero}>
             <Image 
               source={{ uri: getImageUrl(headerInfo?.image, 'high') }} 
-              style={styles.heroImage} 
+              style={[styles.heroImage, type === 'artist' && { borderRadius: 100 }]} 
             />
             <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>
               {decodeHtmlEntities(headerInfo?.name || title)}

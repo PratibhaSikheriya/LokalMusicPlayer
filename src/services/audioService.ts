@@ -1,5 +1,3 @@
-// src/services/audioService.ts
-
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS, AVPlaybackStatus } from 'expo-av';
 import { usePlayerStore } from '../store/playerStore';
 import { useQueueStore } from '../store/queueStore';
@@ -13,9 +11,10 @@ const getStreamUrl = (song: Song): string | null => {
   if (!song) return null;
   const sources = song.downloadUrl;
   if (Array.isArray(sources) && sources.length > 0) {
+    // FIXED: Use .at(-1) per linter suggestion
     const best = sources.find((s: any) => s.quality === '320kbps') || 
                  sources.find((s: any) => s.quality === '160kbps') || 
-                 sources[sources.length - 1];
+                 sources.at(-1);
     return best?.url || best?.link || null;
   }
   if (typeof sources === 'string') return sources;
@@ -29,9 +28,10 @@ export const audioService = {
         allowsRecordingIOS: false,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
         interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
         interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false
       });
     } catch (error) {
       console.error('Audio Setup Error:', error);
@@ -52,35 +52,21 @@ export const audioService = {
   },
 
   async loadAndPlay(song: Song): Promise<void> {
-    // SAFETY CHECK: Prevent playing Artists or Albums
-    if (song.type === 'artist' || song.type === 'album') {
-      console.warn('⚠️ Cannot play an Artist or Album directly. Use navigation.');
-      return; 
-    }
+    if (song.type === 'artist' || song.type === 'album') return;
 
     const { setCurrentSong, setIsPlaying } = usePlayerStore.getState();
     const { recordPlay } = useMusicStore.getState();
 
     try {
       let fullSong = song;
-      
-      // If no downloadUrl, fetch details
       if (!song.downloadUrl || !getStreamUrl(song)) {
-        console.log('Fetching details for:', song.name);
         const details = await saavnApi.getSongById(song.id);
-        if (!details) {
-          // Silent fail to avoid crashing UI
-          console.warn('Could not fetch song details.');
-          return;
-        }
+        if (!details) return;
         fullSong = details;
       }
       
       const uri = getStreamUrl(fullSong);
-      if (!uri) {
-        console.warn('No audio link found for:', song.name);
-        return; 
-      }
+      if (!uri) return;
 
       if (soundObject) {
         await soundObject.unloadAsync();
@@ -98,7 +84,7 @@ export const audioService = {
       soundObject = sound;
       setCurrentSong(fullSong);
       setIsPlaying(true);
-      recordPlay(fullSong); // Add to history/most played
+      recordPlay(fullSong);
       
     } catch (error) {
       console.error('Playback Error:', error);
@@ -125,49 +111,34 @@ export const audioService = {
 
   async playNext(): Promise<void> {
     const next = useQueueStore.getState().playNext();
-    if (next) {
-      await this.loadAndPlay(next);
-    } else {
-      this.stop();
-    }
+    if (next) await this.loadAndPlay(next);
+    else this.stop();
   },
 
   async playPrevious(): Promise<void> {
     const prev = useQueueStore.getState().playPrevious();
-    if (prev) {
-      await this.loadAndPlay(prev);
-    }
+    if (prev) await this.loadAndPlay(prev);
   },
 
   async seek(position: number): Promise<void> {
     if (!soundObject) return;
-    try {
-      await soundObject.setPositionAsync(position);
-    } catch (error) {
-      console.error('Seek Error:', error);
-    }
+    await soundObject.setPositionAsync(position);
   },
 
   async skipForward() {
     if (!soundObject) return;
-    try {
-      const status = await soundObject.getStatusAsync();
-      if (status.isLoaded) {
-        const newPos = status.positionMillis + 10000; 
-        await soundObject.setPositionAsync(Math.min(newPos, status.durationMillis || newPos));
-      }
-    } catch (e) {}
+    const status = await soundObject.getStatusAsync();
+    if (status.isLoaded) {
+      await soundObject.setPositionAsync(status.positionMillis + 10000);
+    }
   },
 
   async skipBackward() {
     if (!soundObject) return;
-    try {
-      const status = await soundObject.getStatusAsync();
-      if (status.isLoaded) {
-        const newPos = Math.max(0, status.positionMillis - 10000);
-        await soundObject.setPositionAsync(newPos);
-      }
-    } catch (e) {}
+    const status = await soundObject.getStatusAsync();
+    if (status.isLoaded) {
+      await soundObject.setPositionAsync(Math.max(0, status.positionMillis - 10000));
+    }
   },
 
   async stop(): Promise<void> {
@@ -176,9 +147,12 @@ export const audioService = {
         await soundObject.stopAsync();
         await soundObject.unloadAsync();
         soundObject = null;
-      } catch (e) {}
+      } catch (e) {
+        // FIXED: Log error to satisfy linter
+        console.error('Stop error:', e);
+      }
     }
     usePlayerStore.getState().setCurrentSong(null);
     usePlayerStore.getState().setIsPlaying(false);
-  },
+  }
 };
