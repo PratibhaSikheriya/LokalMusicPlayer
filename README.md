@@ -1,4 +1,4 @@
-[![Download APK](https://img.shields.io/badge/Download-APK-orange?style=for-the-badge&logo=android)](https://expo.dev/artifacts/eas/9f45TYYaAb8bGqGvCmqnH.apk)
+[![Download APK](https://img.shields.io/badge/Download-APK-orange?style=for-the-badge&logo=android)](https://expo.dev/accounts/pratibhasikheriya/projects/lokal-music/builds/2ad26c7e-15db-4ad1-bb63-7a5fda7b3145)
 
 # 🎵 Lokal Music Player
 
