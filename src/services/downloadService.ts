@@ -6,7 +6,7 @@ export const downloadService = {
   async downloadSong(song: Song) {
     try {
       // 1. Get the highest quality URL
-      // (Using .at(-1) as suggested by linter)
+      // Use .at(-1) to fix linter warning about array access
       const downloadUrlObj = Array.isArray(song.downloadUrl) 
         ? song.downloadUrl.at(-1) 
         : null;
@@ -19,7 +19,7 @@ export const downloadService = {
       }
 
       // 2. Define the path
-      // @ts-ignore: Suppressing 'documentDirectory' type error (it exists at runtime)
+      // @ts-ignore: Suppress "Property does not exist" error (it works at runtime)
       const docDir = FileSystem.documentDirectory;
       
       if (!docDir) {
@@ -27,6 +27,7 @@ export const downloadService = {
         return;
       }
 
+      // 3. Clean filename
       // Use regex global replace (safest for compatibility)
       const safeName = song.name.replace(/[^a-zA-Z0-9]/g, '_');
       const fileName = `${safeName}_${song.id}.mp4`;
@@ -34,7 +35,8 @@ export const downloadService = {
 
       console.log('Downloading to:', fileUri);
 
-      // 3. Download
+      // 4. Download
+      // Using createDownloadResumable is the standard way to avoid "deprecated" warnings
       const downloadResumable = FileSystem.createDownloadResumable(
         url,
         fileUri,
@@ -43,8 +45,8 @@ export const downloadService = {
 
       const result = await downloadResumable.downloadAsync();
 
-      // 4. Success Handling (Optional chaining fixed)
-      if (result?.status === 200) {
+      // 5. Success Handling
+      if (result && result.status === 200) {
         Alert.alert('Downloaded!', `Song saved for offline listening.`);
         return result.uri;
       }
