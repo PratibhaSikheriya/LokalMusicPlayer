@@ -7,7 +7,7 @@ export const Colors = {
     input: '#151E32',
     textPrimary: '#FFFFFF',
     textSecondary: '#8996B8',
-    // FIXED: Added missing border property
+ 
     border: 'rgba(255, 255, 255, 0.1)',
     tabBar: '#091227',
     tabIconActive: '#FF6B00',
@@ -21,7 +21,7 @@ export const Colors = {
     input: '#F9F9F9',
     textPrimary: '#091227',
     textSecondary: '#A0A0A0',
-    // FIXED: Added missing border property
+   
     border: 'rgba(0, 0, 0, 0.05)',
     tabBar: '#FFFFFF',
     tabIconActive: '#FF6B00',
