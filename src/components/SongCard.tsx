@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   playingContainer: {
-    backgroundColor: 'rgba(255, 111, 0, 0.1)', // Orange tint to match your theme
+    backgroundColor: 'rgba(255, 111, 0, 0.1)', 
   },
   imageContainer: {
     position: 'relative',
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 8,
-    backgroundColor: '#1a1a2e', // Fallback color while loading
+    backgroundColor: '#1a1a2e', 
   },
   playingOverlay: {
     position: 'absolute',
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 111, 0, 0.6)', // Orange overlay
+    backgroundColor: 'rgba(255, 111, 0, 0.6)',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   playingText: {
-    color: '#FF6F00', // Orange accent
+    color: '#FF6F00', 
   },
   artist: {
     fontSize: 14,
