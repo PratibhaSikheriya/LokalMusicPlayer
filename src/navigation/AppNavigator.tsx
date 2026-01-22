@@ -7,8 +7,7 @@ import { TabNavigator } from './TabNavigator';
 import { PlayerScreen } from '../screens/PlayerScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { MiniPlayer } from '../components/MiniPlayer';
-import { QueueScreen } from '../screens/QueueScreen'; // Import Queue
-import { DetailsScreen } from '../screens/DetailsScreen'; // Import Details
+import { DetailsScreen } from '../screens/DetailsScreen';
 import { usePlayerStore } from '../store/playerStore';
 
 
