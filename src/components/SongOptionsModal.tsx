@@ -39,7 +39,7 @@ export const SongOptionsModal: React.FC<Props> = ({ visible, onClose, song }) =>
       case 'Add to Playlist': setShowPlaylists(true); break; // Toggle View
       case 'Go to Artist':
         onClose();
-        // Extract artist ID if possible, otherwise use name
+       
         const artistId = song.primaryArtistsId?.split(',')[0] || song.primaryArtists;
         (navigation as any).navigate('Details', { type: 'artist', id: artistId, title: song.primaryArtists });
         break;
